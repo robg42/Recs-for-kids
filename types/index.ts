@@ -39,6 +39,7 @@ export interface Venue {
   rating?: number;
   openNow: boolean;
   type: string;
+  photoName?: string;
 }
 
 export interface WhyItWorks {

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import InputForm from '@/components/InputForm';
 import ActivityCard from '@/components/ActivityCard';
+import SwipeCard from '@/components/SwipeCard';
 import FeedbackModal from '@/components/FeedbackModal';
 import WeatherBadge from '@/components/WeatherBadge';
 import { usePreferences } from '@/hooks/usePreferences';
@@ -18,6 +19,7 @@ import type {
 } from '@/types';
 
 type View = 'form' | 'results';
+type ResultsMode = 'list' | 'stack';
 
 export default function DiscoverPage() {
   const router = useRouter();
@@ -25,11 +27,17 @@ export default function DiscoverPage() {
   const { requestLocation } = useLocation();
 
   const [view, setView] = useState<View>('form');
+  const [resultsMode, setResultsMode] = useState<ResultsMode>('list');
   const [loading, setLoading] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [activityTotal, setActivityTotal] = useState(0);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<Activity | null>(null);
+
+  // Keep a stable ref for the current mode so SwipeCard animation isn't disrupted by re-renders
+  const resultsModeRef = useRef(resultsMode);
+  resultsModeRef.current = resultsMode;
 
   const handleSearch = useCallback(
     async (filters: ActivityFilters) => {
@@ -83,7 +91,9 @@ export default function DiscoverPage() {
           return;
         }
 
-        setActivities(data.activities ?? []);
+        const fetched: Activity[] = data.activities ?? [];
+        setActivities(fetched);
+        setActivityTotal(fetched.length);
         setWeather(data.weather ?? null);
         setView('results');
       } catch {
@@ -109,6 +119,12 @@ export default function DiscoverPage() {
     reject(rejecting, reason);
     setActivities((prev) => prev.filter((a) => a.id !== rejecting.id));
     setRejecting(null);
+  }
+
+  // Stack mode skip — no reason needed, uses 'not_today'
+  function handleSkip(activity: Activity) {
+    reject(activity, 'not_today');
+    setActivities((prev) => prev.filter((a) => a.id !== activity.id));
   }
 
   const noChildrenBanner = !hasChildren && !loading && (
@@ -171,10 +187,56 @@ export default function DiscoverPage() {
               <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                 {prefs?.children && prefs.children.length > 0
                   ? `For ${prefs.children.map((c) => c.name).join(' & ')}`
-                  : "What should we do today?"}
+                  : 'What should we do today?'}
               </p>
             </div>
-            {weather && <WeatherBadge weather={weather} />}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {weather && <WeatherBadge weather={weather} />}
+              {view === 'results' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    background: 'var(--color-bg)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 10,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <button
+                    onClick={() => setResultsMode('list')}
+                    title="List view"
+                    style={{
+                      padding: '7px 10px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: resultsMode === 'list' ? 'var(--color-orange)' : 'transparent',
+                      color: resultsMode === 'list' ? '#fff' : 'var(--color-text-muted)',
+                      fontSize: 14,
+                      transition: 'all 0.15s',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ☰
+                  </button>
+                  <button
+                    onClick={() => setResultsMode('stack')}
+                    title="Stack view"
+                    style={{
+                      padding: '7px 10px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: resultsMode === 'stack' ? 'var(--color-orange)' : 'transparent',
+                      color: resultsMode === 'stack' ? '#fff' : 'var(--color-text-muted)',
+                      fontSize: 14,
+                      transition: 'all 0.15s',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ⊞
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -226,10 +288,7 @@ export default function DiscoverPage() {
             </div>
 
             {activities.length === 0 ? (
-              <div
-                className="card"
-                style={{ padding: '40px 24px', textAlign: 'center' }}
-              >
+              <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
                 <h3
                   style={{
@@ -241,8 +300,8 @@ export default function DiscoverPage() {
                   All sorted!
                 </h3>
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                  You&apos;ve reviewed all today&apos;s suggestions. Check History to see what you picked,
-                  or search again for more ideas.
+                  You&apos;ve reviewed all today&apos;s suggestions. Check History to see what you
+                  picked, or search again for more ideas.
                 </p>
                 <button
                   className="btn-primary"
@@ -252,6 +311,13 @@ export default function DiscoverPage() {
                   Find more adventures
                 </button>
               </div>
+            ) : resultsMode === 'stack' ? (
+              <SwipeCard
+                activities={activities}
+                total={activityTotal}
+                onAccept={handleAccept}
+                onSkip={handleSkip}
+              />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {activities.map((activity, i) => (
@@ -275,7 +341,14 @@ export default function DiscoverPage() {
             )}
 
             {error && (
-              <p style={{ color: '#DC2626', fontSize: '0.875rem', marginTop: 16, textAlign: 'center' }}>
+              <p
+                style={{
+                  color: '#DC2626',
+                  fontSize: '0.875rem',
+                  marginTop: 16,
+                  textAlign: 'center',
+                }}
+              >
                 {error}
               </p>
             )}

@@ -42,6 +42,7 @@ interface PlacesApiPlace {
   rating?: number;
   currentOpeningHours?: { openNow: boolean };
   primaryType?: string;
+  photos?: Array<{ name: string }>;
 }
 
 interface PlacesApiResponse {
@@ -81,7 +82,7 @@ export async function getNearbyVenues(
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
         'X-Goog-FieldMask':
-          'places.id,places.displayName,places.primaryType,places.primaryTypeDisplayName,places.shortFormattedAddress,places.rating,places.currentOpeningHours',
+          'places.id,places.displayName,places.primaryType,places.primaryTypeDisplayName,places.shortFormattedAddress,places.rating,places.currentOpeningHours,places.photos',
       },
       body: JSON.stringify(body),
     });
@@ -105,6 +106,7 @@ export async function getNearbyVenues(
         rating: p.rating,
         openNow: p.currentOpeningHours?.openNow ?? true,
         type: p.primaryTypeDisplayName?.text ?? p.primaryType ?? 'venue',
+        photoName: p.photos?.[0]?.name,
       }));
   } catch (err) {
     console.error('[places] Fetch error:', err);

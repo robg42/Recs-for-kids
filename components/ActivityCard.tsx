@@ -10,187 +10,272 @@ interface Props {
   index: number;
 }
 
+const ENERGY_COLOUR: Record<string, string> = {
+  low: '#16A34A',
+  medium: '#3B82F6',
+  high: '#F97316',
+};
+
+const ENERGY_BG: Record<string, string> = {
+  low: '#BBF7D0',
+  medium: '#DBEAFE',
+  high: '#FED7AA',
+};
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  playground_adventure: '🛝',
+  museum_mission: '🏛️',
+  soft_play: '🧸',
+  cheap_cinema: '🎬',
+  nature_walk: '🌿',
+  at_home_creative: '🎨',
+  local_event: '🎡',
+};
+
 export default function ActivityCard({ activity, onAccept, onReject, index }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
+
+  const hasPhoto = !photoError && !!activity.venue?.photoName;
+  const photoUrl = activity.venue?.photoName
+    ? `/api/photo?name=${encodeURIComponent(activity.venue.photoName)}`
+    : null;
 
   const costLabel =
-    activity.costPerChild === 0
-      ? 'Free'
-      : `£${activity.costPerChild.toFixed(0)} per child`;
-
-  const energyColour: Record<string, string> = {
-    low: 'var(--color-green)',
-    medium: 'var(--color-blue)',
-    high: 'var(--color-orange)',
-  };
-
-  const categoryEmoji: Record<string, string> = {
-    playground_adventure: '🛝',
-    museum_mission: '🏛️',
-    soft_play: '🧸',
-    cheap_cinema: '🎬',
-    nature_walk: '🌿',
-    at_home_creative: '🎨',
-    local_event: '🎡',
-  };
+    activity.costPerChild === 0 ? 'Free' : `£${activity.costPerChild.toFixed(0)}/child`;
 
   return (
     <div
       className="card animate-fade-in"
-      style={{
-        animationDelay: `${index * 80}ms`,
-        overflow: 'hidden',
-      }}
+      style={{ animationDelay: `${index * 80}ms`, overflow: 'hidden' }}
     >
-      {/* Card header */}
+      {/* Tappable header */}
       <button
         onClick={() => setExpanded((v) => !v)}
         style={{
           width: '100%',
-          textAlign: 'left',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          padding: '20px',
-          display: 'flex',
-          gap: 16,
-          alignItems: 'flex-start',
+          textAlign: 'left',
+          padding: 0,
+          display: 'block',
         }}
       >
-        <span
+        {/* Photo hero or emoji header */}
+        {hasPhoto && photoUrl ? (
+          <div style={{ position: 'relative', height: 180, overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
+            <img
+              src={photoUrl}
+              alt={activity.venue!.name}
+              onError={() => setPhotoError(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+            {/* Gradient overlay with title */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.72) 100%)',
+                display: 'flex',
+                alignItems: 'flex-end',
+                padding: '16px',
+              }}
+            >
+              <h3
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.15rem',
+                  fontWeight: 800,
+                  margin: 0,
+                  color: '#fff',
+                  lineHeight: 1.2,
+                  textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                }}
+              >
+                {activity.title}
+              </h3>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '18px 16px 0', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <span
+              style={{
+                fontSize: 36,
+                lineHeight: 1,
+                flexShrink: 0,
+                width: 52,
+                height: 52,
+                background: 'var(--color-bg)',
+                borderRadius: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {activity.emoji}
+            </span>
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.1rem',
+                fontWeight: 800,
+                margin: '4px 0 0',
+                lineHeight: 1.25,
+                color: 'var(--color-text)',
+                flex: 1,
+              }}
+            >
+              {activity.title}
+            </h3>
+          </div>
+        )}
+
+        {/* Badges row */}
+        <div
           style={{
-            fontSize: 40,
-            lineHeight: 1,
-            flexShrink: 0,
-            width: 52,
-            height: 52,
-            background: 'var(--color-bg)',
-            borderRadius: 14,
+            padding: '10px 16px 14px',
             display: 'flex',
+            gap: 6,
+            flexWrap: 'wrap',
             alignItems: 'center',
-            justifyContent: 'center',
           }}
         >
-          {activity.emoji}
-        </span>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3
+          <span
             style={{
+              background: '#BBF7D0',
+              color: '#166534',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: 999,
               fontFamily: 'var(--font-display)',
-              fontSize: '1.1rem',
-              fontWeight: 800,
-              margin: '0 0 6px',
-              lineHeight: 1.2,
-              color: 'var(--color-text)',
             }}
           >
-            {activity.title}
-          </h3>
+            {costLabel}
+          </span>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span
+            style={{
+              background: ENERGY_BG[activity.energyLevel] ?? '#F3F4F6',
+              color: ENERGY_COLOUR[activity.energyLevel] ?? 'var(--color-text-muted)',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: 999,
+              fontFamily: 'var(--font-display)',
+            }}
+          >
+            {CATEGORY_EMOJI[activity.category]} {activity.duration}
+          </span>
+
+          {activity.venue?.rating && (
             <span
               style={{
-                background: 'var(--color-green-light)',
-                color: 'var(--color-green)',
-                fontSize: '0.75rem',
+                background: '#FEF9C3',
+                color: '#854D0E',
+                fontSize: '0.72rem',
                 fontWeight: 700,
                 padding: '3px 10px',
-                borderRadius: 'var(--radius-pill)',
+                borderRadius: 999,
                 fontFamily: 'var(--font-display)',
               }}
             >
-              {costLabel}
+              ⭐ {activity.venue.rating.toFixed(1)}
             </span>
+          )}
+
+          {activity.venue?.openNow === false && (
             <span
               style={{
-                background: 'var(--color-bg)',
-                color: energyColour[activity.energyLevel] ?? 'var(--color-text-muted)',
-                fontSize: '0.75rem',
+                background: '#FEE2E2',
+                color: '#991B1B',
+                fontSize: '0.72rem',
                 fontWeight: 700,
                 padding: '3px 10px',
-                borderRadius: 'var(--radius-pill)',
+                borderRadius: 999,
                 fontFamily: 'var(--font-display)',
-                border: '1px solid var(--color-border)',
               }}
             >
-              {categoryEmoji[activity.category]} {activity.duration}
+              May be closed
             </span>
-          </div>
+          )}
 
           {activity.venue && (
-            <p
+            <span
               style={{
-                margin: '8px 0 0',
-                fontSize: '0.8rem',
+                fontSize: '0.75rem',
                 color: 'var(--color-text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                maxWidth: '100%',
               }}
             >
               📍 {activity.venue.name}
-            </p>
+            </span>
           )}
-        </div>
 
-        <span
-          style={{
-            fontSize: 20,
-            color: 'var(--color-text-faint)',
-            flexShrink: 0,
-            transition: 'transform 0.2s',
-            transform: expanded ? 'rotate(180deg)' : 'none',
-          }}
-        >
-          ↓
-        </span>
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontSize: 16,
+              color: 'var(--color-text-faint)',
+              transition: 'transform 0.2s',
+              transform: expanded ? 'rotate(180deg)' : 'none',
+              flexShrink: 0,
+            }}
+          >
+            ↓
+          </span>
+        </div>
       </button>
 
       {/* Expanded content */}
       {expanded && (
         <div
-          style={{
-            padding: '0 20px 20px',
-            borderTop: '1px solid var(--color-border)',
-            paddingTop: 16,
-          }}
           className="animate-fade-in"
+          style={{ borderTop: '1px solid var(--color-border)', padding: '16px 18px 20px' }}
         >
           {/* Plan */}
-          <h4
+          <p
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: '0.8rem',
+              fontSize: '0.72rem',
+              fontWeight: 700,
               color: 'var(--color-text-muted)',
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              letterSpacing: '0.07em',
               margin: '0 0 10px',
             }}
           >
             The plan
-          </h4>
-          <ol style={{ margin: '0 0 20px', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          </p>
+          <ol style={{ margin: '0 0 20px', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
             {activity.plan.map((step, i) => (
-              <li key={i} style={{ fontSize: '0.9rem', color: 'var(--color-text)', lineHeight: 1.4 }}>
+              <li key={i} style={{ fontSize: '0.875rem', color: 'var(--color-text)', lineHeight: 1.45 }}>
                 {step}
               </li>
             ))}
           </ol>
 
           {/* Why it works */}
-          <h4
+          <p
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: '0.8rem',
+              fontSize: '0.72rem',
+              fontWeight: 700,
               color: 'var(--color-text-muted)',
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              letterSpacing: '0.07em',
               margin: '0 0 10px',
             }}
           >
             Why it works
-          </h4>
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
             {activity.whyItWorks.map((w, i) => (
               <div
@@ -199,19 +284,20 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                   background: 'var(--color-bg)',
                   borderRadius: 12,
                   padding: '10px 14px',
+                  borderLeft: '3px solid var(--color-orange)',
                 }}
               >
                 <span
                   style={{
                     fontFamily: 'var(--font-display)',
                     fontWeight: 700,
-                    fontSize: '0.85rem',
-                    color: 'var(--color-orange)',
+                    fontSize: '0.82rem',
+                    color: 'var(--color-orange-dark)',
                   }}
                 >
-                  {w.name} (age {w.age})
+                  {w.name}, {w.age}
                 </span>
-                <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
                   {w.reason}
                 </p>
               </div>
@@ -231,16 +317,19 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                 alignItems: 'flex-start',
               }}
             >
-              <span style={{ fontSize: 18 }}>📍</span>
-              <div>
-                <div
-                  style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem' }}
-                >
+              <span style={{ fontSize: 16, marginTop: 1 }}>📍</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.875rem' }}>
                   {activity.venue.name}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
                   {activity.venue.address}
                 </div>
+                {activity.venue.rating && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                    ⭐ {activity.venue.rating.toFixed(1)} · {activity.venue.type}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -249,15 +338,15 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               className="btn-secondary"
-              style={{ flex: 1 }}
-              onClick={() => onReject(activity)}
+              style={{ flex: 1, fontSize: '0.9rem' }}
+              onClick={(e) => { e.stopPropagation(); onReject(activity); }}
             >
               Not today
             </button>
             <button
               className="btn-primary"
               style={{ flex: 2 }}
-              onClick={() => onAccept(activity)}
+              onClick={(e) => { e.stopPropagation(); onAccept(activity); }}
             >
               Let&apos;s do this! 🎉
             </button>
