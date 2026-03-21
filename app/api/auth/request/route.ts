@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
     console.log('[auth/request] step: success');
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('[auth/request] CRASH at step:', (err as Error)?.message ?? String(err), err);
-    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
+    const msg = (err as Error)?.message ?? String(err);
+    console.error('[auth/request] CRASH:', msg, err);
+    return NextResponse.json({ error: 'Something went wrong. Please try again.', _debug: msg }, { status: 500 });
   }
 }
