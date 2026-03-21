@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/activities/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
