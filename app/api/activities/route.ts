@@ -6,6 +6,7 @@ import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/ip';
 import { saveServerCache } from '@/lib/activity-cache';
+import { buildPoolKey, getFromPool, saveToPool } from '@/lib/suggestion-pool';
 import { initSchema } from '@/lib/schema';
 import type { GenerateActivitiesRequest, GenerateActivitiesResponse } from '@/types';
 
@@ -105,10 +106,22 @@ export async function POST(req: NextRequest) {
 
     console.log(`[api/activities] user=${session.email} coords=${coords.lat},${coords.lon} transport=${filters.transport} indoor=${filters.indoorOutdoor} energy=${filters.energyLevel}`);
 
+    // Get weather first so we can check the shared pool (weather affects key)
     const [weather, venues] = await Promise.all([
       getWeather(coords.lat, coords.lon),
       getNearbyVenues(coords.lat, coords.lon, radius, filters.indoorOutdoor, filters.energyLevel),
     ]);
+
+    // Check shared suggestion pool — skip expensive Anthropic call if hit
+    await initSchema();
+    const poolKey = buildPoolKey(coords, filters, weather);
+    const poolHit = await getFromPool(poolKey);
+    if (poolHit && !filters.surpriseMe) {
+      console.log(`[api/activities] Pool hit for ${session.email} key=${poolKey}`);
+      // Still save per-user cache so returning user sees these instantly
+      await saveServerCache(session.email, poolHit.activities, poolHit.weather, filters).catch(() => {});
+      return NextResponse.json<GenerateActivitiesResponse>({ activities: poolHit.activities, weather: poolHit.weather });
+    }
 
     if (venues.length === 0) {
       console.warn('[api/activities] No venues returned — activities will be generated without real locations');
@@ -125,13 +138,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[api/activities] Generated ${activities.length} activities for ${session.email}`);
 
-    // Persist to server-side cache so returning users get instant results
-    try {
-      await initSchema();
-      await saveServerCache(session.email, activities, weather, filters);
-    } catch (cacheErr) {
-      console.error('[api/activities] Cache save failed (non-fatal):', cacheErr);
-    }
+    // Persist to shared pool and per-user cache
+    await Promise.all([
+      saveToPool(poolKey, activities, weather),
+      saveServerCache(session.email, activities, weather, filters),
+    ]).catch((err) => console.error('[api/activities] Cache save failed (non-fatal):', err));
 
     return NextResponse.json<GenerateActivitiesResponse>({ activities, weather });
   } catch (err) {
