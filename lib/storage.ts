@@ -11,7 +11,9 @@ import type {
 
 const STORAGE_KEY = 'recs-for-kids-prefs';
 const FILTERS_KEY = 'recs-for-kids-filters';
+const RESULTS_CACHE_KEY = 'recs-for-kids-results-cache';
 const MAX_RECENT_IDS = 20;
+const RESULTS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 const DEFAULT_WEIGHTS: CategoryWeights = {
   playground_adventure: 1,
@@ -132,6 +134,36 @@ export function loadFilters(): ActivityFilters | null {
     const raw = localStorage.getItem(FILTERS_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as ActivityFilters;
+  } catch {
+    return null;
+  }
+}
+
+interface ResultsCache {
+  activities: import('@/types').Activity[];
+  weather: import('@/types').WeatherData;
+  filters: ActivityFilters;
+  savedAt: number;
+}
+
+export function saveResultsCache(
+  activities: import('@/types').Activity[],
+  weather: import('@/types').WeatherData,
+  filters: ActivityFilters
+): void {
+  if (!isBrowser()) return;
+  const cache: ResultsCache = { activities, weather, filters, savedAt: Date.now() };
+  localStorage.setItem(RESULTS_CACHE_KEY, JSON.stringify(cache));
+}
+
+export function loadResultsCache(): ResultsCache | null {
+  if (!isBrowser()) return null;
+  try {
+    const raw = localStorage.getItem(RESULTS_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as ResultsCache;
+    if (Date.now() - cache.savedAt > RESULTS_CACHE_TTL_MS) return null;
+    return cache;
   } catch {
     return null;
   }

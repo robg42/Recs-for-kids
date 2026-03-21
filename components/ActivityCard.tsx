@@ -12,14 +12,14 @@ interface Props {
 
 const ENERGY_COLOUR: Record<string, string> = {
   low: '#16A34A',
-  medium: '#3B82F6',
+  medium: '#2563EB',
   high: '#F97316',
 };
 
 const ENERGY_BG: Record<string, string> = {
-  low: '#BBF7D0',
-  medium: '#DBEAFE',
-  high: '#FED7AA',
+  low: '#DCFCE7',
+  medium: '#EFF6FF',
+  high: '#FFF1E6',
 };
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -30,6 +30,17 @@ const CATEGORY_EMOJI: Record<string, string> = {
   nature_walk: '🌿',
   at_home_creative: '🎨',
   local_event: '🎡',
+};
+
+// Category gradient for photo-less hero
+const CATEGORY_GRADIENT: Record<string, string> = {
+  playground_adventure: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+  museum_mission:       'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+  soft_play:            'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+  cheap_cinema:         'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+  nature_walk:          'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+  at_home_creative:     'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+  local_event:          'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
 };
 
 export default function ActivityCard({ activity, onAccept, onReject, index }: Props) {
@@ -98,36 +109,24 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
             </div>
           </div>
         ) : (
-          <div style={{ padding: '18px 16px 0', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            <span
-              style={{
-                fontSize: 36,
-                lineHeight: 1,
-                flexShrink: 0,
-                width: 52,
-                height: 52,
-                background: 'var(--color-bg)',
-                borderRadius: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {activity.emoji}
-            </span>
-            <h3
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.1rem',
-                fontWeight: 800,
-                margin: '4px 0 0',
-                lineHeight: 1.25,
-                color: 'var(--color-text)',
-                flex: 1,
-              }}
-            >
-              {activity.title}
-            </h3>
+          // Gradient hero for photo-less activities
+          <div
+            style={{
+              position: 'relative',
+              height: 140,
+              overflow: 'hidden',
+              borderRadius: '15px 15px 0 0',
+              background: CATEGORY_GRADIENT[activity.category] ?? 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
+            }}
+          >
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 52, opacity: 0.25 }}>
+              {CATEGORY_EMOJI[activity.category] ?? activity.emoji}
+            </div>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.5) 100%)', display: 'flex', alignItems: 'flex-end', padding: '14px 16px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, margin: 0, color: '#fff', lineHeight: 1.2, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
+                {activity.title}
+              </h3>
+            </div>
           </div>
         )}
 
@@ -215,7 +214,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                 maxWidth: '100%',
               }}
             >
-              📍 {activity.venue.name}
+              {activity.venue.name}
             </span>
           )}
 

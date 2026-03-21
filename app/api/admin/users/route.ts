@@ -16,15 +16,16 @@ async function requireAdmin(): Promise<NextResponse | null> {
 }
 
 export async function GET() {
+  await initSchema();
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  await initSchema();
   const users = await listUsers();
   return NextResponse.json({ users });
 }
 
 export async function POST(req: NextRequest) {
+  await initSchema();
   const denied = await requireAdmin();
   if (denied) return denied;
 
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  await initSchema();
   const denied = await requireAdmin();
   if (denied) return denied;
 
@@ -73,6 +75,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  await initSchema();
   const denied = await requireAdmin();
   if (denied) return denied;
 

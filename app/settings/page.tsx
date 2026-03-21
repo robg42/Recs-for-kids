@@ -153,7 +153,7 @@ export default function SettingsPage() {
                       onClick={() => setEditingInterestsId(editingInterestsId === c.id ? null : c.id)}
                       style={{ fontSize: '0.8rem', color: 'var(--color-orange)' }}
                     >
-                      {editingInterestsId === c.id ? 'Done' : '✏️ Interests'}
+                      {editingInterestsId === c.id ? 'Done' : '✏️ About them'}
                     </button>
                     <button
                       className="btn-ghost"
@@ -168,19 +168,19 @@ export default function SettingsPage() {
                 {editingInterestsId === c.id ? (
                   <div style={{ marginTop: 12 }}>
                     <label className="field-label" htmlFor={`interests-${c.id}`}>
-                      What does {c.name} like? (used to personalise suggestions)
+                      What is {c.name} like?
                     </label>
                     <input
                       id={`interests-${c.id}`}
                       type="text"
                       className="text-input"
-                      placeholder="e.g. dinosaurs, Lego, football, drawing"
+                      placeholder="e.g. loves dinosaurs, gets impatient in museums, obsessed with Lego"
                       value={c.interests ?? ''}
                       onChange={(e) => updateInterests(c.id, e.target.value)}
-                      maxLength={120}
+                      maxLength={200}
                     />
                     <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
-                      Separate interests with commas. Keeps it grounded — no personality assumptions.
+                      Interests, quirks, what they love or hate — Claude will use this to tailor suggestions.
                     </div>
                   </div>
                 ) : c.interests ? (

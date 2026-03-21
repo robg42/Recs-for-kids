@@ -10,7 +10,7 @@ import FeedbackModal from '@/components/FeedbackModal';
 import WeatherBadge from '@/components/WeatherBadge';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useLocation } from '@/hooks/useLocation';
-import { saveFilters, loadFilters } from '@/lib/storage';
+import { saveFilters, loadFilters, saveResultsCache, loadResultsCache } from '@/lib/storage';
 import type {
   ActivityFilters,
   Activity,
@@ -34,9 +34,19 @@ const DEFAULT_FILTERS: ActivityFilters = {
   surpriseMe: false,
 };
 
+// Rate limit: max N refreshes within window
+const REFRESH_MAX = 3;
+const REFRESH_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
 function getInitialFilters(): ActivityFilters {
-  const saved = loadFilters();
-  return saved ?? DEFAULT_FILTERS;
+  return loadFilters() ?? DEFAULT_FILTERS;
+}
+
+function minutesAgo(ms: number) {
+  const mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins === 1) return '1 min ago';
+  return `${mins} mins ago`;
 }
 
 export default function DiscoverPage() {
@@ -54,12 +64,49 @@ export default function DiscoverPage() {
   const [rejecting, setRejecting] = useState<Activity | null>(null);
   const [hasResults, setHasResults] = useState(false);
   const [showFullForm, setShowFullForm] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null); // timestamp of last cache load
+  const [isFromCache, setIsFromCache] = useState(false);
 
-  const resultsModeRef = useRef(resultsMode);
-  resultsModeRef.current = resultsMode;
+  // Pull-to-refresh state
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+  const mainRef = useRef<HTMLDivElement>(null);
 
-  // Track whether we've already done the initial auto-fetch
+  // Refresh rate limiting
+  const refreshTimestampsRef = useRef<number[]>([]);
+
+  function canRefresh(): { ok: boolean; waitSecs?: number } {
+    const now = Date.now();
+    // Prune old timestamps
+    refreshTimestampsRef.current = refreshTimestampsRef.current.filter(t => now - t < REFRESH_WINDOW_MS);
+    if (refreshTimestampsRef.current.length >= REFRESH_MAX) {
+      const oldest = refreshTimestampsRef.current[0];
+      const waitMs = REFRESH_WINDOW_MS - (now - oldest);
+      return { ok: false, waitSecs: Math.ceil(waitMs / 1000) };
+    }
+    return { ok: true };
+  }
+
+  function recordRefresh() {
+    refreshTimestampsRef.current.push(Date.now());
+  }
+
   const autoFetchedRef = useRef(false);
+
+  // Load cached results instantly on mount
+  useEffect(() => {
+    const cache = loadResultsCache();
+    if (cache && cache.activities.length > 0) {
+      setActivities(cache.activities);
+      setActivityTotal(cache.activities.length);
+      setWeather(cache.weather);
+      setHasResults(true);
+      setCachedAt(cache.savedAt);
+      setIsFromCache(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function updateFilter<K extends keyof ActivityFilters>(key: K, value: ActivityFilters[K]) {
     setFilters((f) => {
@@ -70,10 +117,20 @@ export default function DiscoverPage() {
   }
 
   const fetchActivities = useCallback(
-    async (currentFilters: ActivityFilters) => {
+    async (currentFilters: ActivityFilters, isManualRefresh = false) => {
       if (!hasChildren || !prefs) {
         router.push('/settings');
         return;
+      }
+
+      if (isManualRefresh) {
+        const check = canRefresh();
+        if (!check.ok) {
+          const mins = Math.ceil((check.waitSecs ?? 60) / 60);
+          setError(`Too many refreshes. Try again in ${mins} min.`);
+          return;
+        }
+        recordRefresh();
       }
 
       setLoading(true);
@@ -94,15 +151,7 @@ export default function DiscoverPage() {
         coords,
         recentActivityIds: prefs.recentActivityIds,
         categoryWeights: currentFilters.surpriseMe
-          ? {
-              playground_adventure: 1,
-              museum_mission: 1,
-              soft_play: 1,
-              cheap_cinema: 1,
-              nature_walk: 1,
-              at_home_creative: 1,
-              local_event: 1,
-            }
+          ? { playground_adventure: 1, museum_mission: 1, soft_play: 1, cheap_cinema: 1, nature_walk: 1, at_home_creative: 1, local_event: 1 }
           : prefs.categoryWeights,
       };
 
@@ -126,17 +175,21 @@ export default function DiscoverPage() {
         setActivityTotal(fetched.length);
         setWeather(data.weather ?? null);
         setHasResults(true);
+        setIsFromCache(false);
+        setCachedAt(null);
         saveFilters(currentFilters);
+        if (fetched.length > 0) saveResultsCache(fetched, data.weather, currentFilters);
       } catch {
         setError('Network error. Please check your connection and try again.');
       } finally {
         setLoading(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [hasChildren, prefs, requestLocation, router]
   );
 
-  // Auto-fetch once when prefs first become available and user has children
+  // Auto-fetch once when prefs first become available with children
   useEffect(() => {
     if (!autoFetchedRef.current && hasChildren && prefs) {
       autoFetchedRef.current = true;
@@ -153,10 +206,37 @@ export default function DiscoverPage() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setFilters((current) => {
-        fetchActivities(current);
+        fetchActivities(current, true);
         return current;
       });
-    }, 600);
+    }, 700);
+  }
+
+  // Pull-to-refresh handlers
+  function handleTouchStart(e: React.TouchEvent) {
+    const scrollTop = mainRef.current?.scrollTop ?? 0;
+    if (scrollTop > 0) return;
+    touchStartY.current = e.touches[0].clientY;
+    isPulling.current = true;
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isPulling.current) return;
+    const scrollTop = mainRef.current?.scrollTop ?? 0;
+    if (scrollTop > 0) { isPulling.current = false; setPullY(0); return; }
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0) setPullY(Math.min(delta * 0.4, 70));
+  }
+
+  function handleTouchEnd() {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    if (pullY >= 50 && !loading) {
+      setPullY(0);
+      fetchActivities(filters, true);
+    } else {
+      setPullY(0);
+    }
   }
 
   function handleAccept(activity: Activity) {
@@ -164,9 +244,7 @@ export default function DiscoverPage() {
     setActivities((prev) => prev.filter((a) => a.id !== activity.id));
   }
 
-  function handleRejectClick(activity: Activity) {
-    setRejecting(activity);
-  }
+  function handleRejectClick(activity: Activity) { setRejecting(activity); }
 
   function handleRejectConfirm(reason: RejectionReason) {
     if (!rejecting) return;
@@ -180,13 +258,11 @@ export default function DiscoverPage() {
     setActivities((prev) => prev.filter((a) => a.id !== activity.id));
   }
 
-  // Labels for filter display
+  // Filter labels (text-only, no emoji)
   const timeLabels: Record<TimeAvailable, string> = { '1-2h': '1–2 hrs', 'half-day': 'Half day', 'full-day': 'Full day' };
-  const timeEmojis: Record<TimeAvailable, string> = { '1-2h': '⚡', 'half-day': '☀️', 'full-day': '🌟' };
   const ioLabels: Record<IndoorOutdoor, string> = { indoor: 'Indoor', either: 'Either', outdoor: 'Outdoor' };
-  const ioEmojis: Record<IndoorOutdoor, string> = { indoor: '🏠', either: '🌤️', outdoor: '🌳' };
-  const energyLabels: Record<EnergyLevel, string> = { low: 'Relaxed', medium: 'Active', high: 'Wild!' };
-  const energyEmojis: Record<EnergyLevel, string> = { low: '😌', medium: '😊', high: '🔥' };
+  const energyLabels: Record<EnergyLevel, string> = { low: 'Relaxed', medium: 'Active', high: 'Wild' };
+  const transportLabels: Record<Transport, string> = { car: 'Car', public: 'Bus' };
 
   const timeOptions: TimeAvailable[] = ['1-2h', 'half-day', 'full-day'];
   const ioOptions: IndoorOutdoor[] = ['indoor', 'either', 'outdoor'];
@@ -194,171 +270,138 @@ export default function DiscoverPage() {
   const transportOptions: Transport[] = ['car', 'public'];
 
   function cycleOption<T>(current: T, options: T[], key: keyof ActivityFilters) {
-    const idx = options.indexOf(current);
-    const next = options[(idx + 1) % options.length];
+    const next = options[(options.indexOf(current) + 1) % options.length];
     handleFilterChange(key, next as ActivityFilters[typeof key]);
   }
 
-  const pillStyle = (active?: boolean): React.CSSProperties => ({
+  const pill = (active?: boolean): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
     gap: 4,
-    padding: '5px 10px',
+    padding: '5px 11px',
     borderRadius: 999,
-    border: `1.5px solid ${active ? 'var(--color-orange)' : 'var(--color-border)'}`,
-    background: active ? 'var(--color-orange-light)' : 'var(--color-bg-card)',
+    border: `1.5px solid ${active ? 'var(--color-brand)' : 'var(--color-border)'}`,
+    background: active ? 'var(--color-brand-light)' : 'var(--color-bg-card)',
     fontSize: '0.78rem',
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap' as const,
-    color: active ? 'var(--color-orange-dark)' : 'var(--color-text)',
+    color: active ? 'var(--color-brand-dark)' : 'var(--color-text-muted)',
     transition: 'all 0.12s',
     flexShrink: 0,
+    fontFamily: 'var(--font-display)',
   });
-
-  // No children — nudge to settings
-  const noChildrenBanner = !hasChildren && !loading && (
-    <div
-      style={{
-        background: 'var(--color-orange-light)',
-        border: '2px solid var(--color-orange)',
-        borderRadius: 'var(--radius-button)',
-        padding: '14px 16px',
-        marginBottom: 24,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-      }}
-    >
-      <span style={{ fontSize: 24 }}>👶</span>
-      <div>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-orange-dark)' }}>
-          Add your children first
-        </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--color-orange-dark)', opacity: 0.8 }}>
-          Go to Settings to set up children profiles
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <>
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 100px', minHeight: '100dvh' }}>
+      <div
+        ref={mainRef}
+        style={{
+          maxWidth: 480,
+          margin: '0 auto',
+          padding: '20px 16px 100px',
+          minHeight: '100dvh',
+          overflowY: 'auto',
+          position: 'relative',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        {pullY > 0 && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 100,
+              background: 'var(--color-bg-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 999,
+              padding: '8px 16px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              color: pullY >= 50 ? 'var(--color-brand)' : 'var(--color-text-muted)',
+              boxShadow: 'var(--shadow-card)',
+              transition: 'color 0.15s',
+            }}
+          >
+            {pullY >= 50 ? 'Release to refresh' : 'Pull to refresh'}
+          </div>
+        )}
+
         {/* Header */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>
-                🗺️ Family Adventures
-              </h1>
-              <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                {prefs?.children && prefs.children.length > 0
-                  ? `For ${prefs.children.map((c) => c.name).join(' & ')}`
-                  : 'What should we do today?'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+              Family Adventures
+            </h1>
+            {prefs?.children && prefs.children.length > 0 && (
+              <p style={{ margin: '2px 0 0', color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
+                {prefs.children.map((c) => c.name).join(' & ')}
               </p>
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {weather && <WeatherBadge weather={weather} />}
-              {hasResults && (
-                <div style={{ display: 'flex', background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden' }}>
-                  <button
-                    onClick={() => setResultsMode('list')}
-                    title="List view"
-                    style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', background: resultsMode === 'list' ? 'var(--color-orange)' : 'transparent', color: resultsMode === 'list' ? '#fff' : 'var(--color-text-muted)', fontSize: 14, transition: 'all 0.15s', lineHeight: 1 }}
-                  >
-                    ☰
-                  </button>
-                  <button
-                    onClick={() => setResultsMode('stack')}
-                    title="Stack view"
-                    style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', background: resultsMode === 'stack' ? 'var(--color-orange)' : 'transparent', color: resultsMode === 'stack' ? '#fff' : 'var(--color-text-muted)', fontSize: 14, transition: 'all 0.15s', lineHeight: 1 }}
-                  >
-                    ⊞
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {weather && <WeatherBadge weather={weather} />}
+            {hasResults && (
+              <div style={{ display: 'flex', background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden' }}>
+                <button
+                  onClick={() => setResultsMode('list')}
+                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', background: resultsMode === 'list' ? 'var(--color-brand-light)' : 'transparent', color: resultsMode === 'list' ? 'var(--color-brand)' : 'var(--color-text-faint)', fontSize: 13, transition: 'all 0.15s', lineHeight: 1 }}
+                >☰</button>
+                <button
+                  onClick={() => setResultsMode('stack')}
+                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', background: resultsMode === 'stack' ? 'var(--color-brand-light)' : 'transparent', color: resultsMode === 'stack' ? 'var(--color-brand)' : 'var(--color-text-faint)', fontSize: 13, transition: 'all 0.15s', lineHeight: 1 }}
+                >⊞</button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* No children state */}
-        {!hasChildren && noChildrenBanner}
+        {/* No children nudge */}
+        {!hasChildren && !loading && (
+          <div style={{ background: 'var(--color-brand-light)', border: '1.5px solid var(--color-brand-mid)', borderRadius: 14, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-brand-dark)' }}>Add your children first</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-brand-dark)', opacity: 0.7 }}>Go to Settings to set up children profiles</div>
+            </div>
+          </div>
+        )}
 
-        {/* Compact filter strip — always visible when we have children */}
+        {/* Compact filter strip */}
         {hasChildren && (
-          <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                display: 'flex',
-                gap: 6,
-                overflowX: 'auto',
-                paddingBottom: 4,
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-              }}
-            >
-              {/* Time */}
-              <button style={pillStyle()} onClick={() => cycleOption(filters.timeAvailable, timeOptions, 'timeAvailable')}>
-                {timeEmojis[filters.timeAvailable]} {timeLabels[filters.timeAvailable]}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <button style={pill()} onClick={() => cycleOption(filters.timeAvailable, timeOptions, 'timeAvailable')}>
+                {timeLabels[filters.timeAvailable]}
               </button>
-
-              {/* Indoor/outdoor */}
-              <button style={pillStyle()} onClick={() => cycleOption(filters.indoorOutdoor, ioOptions, 'indoorOutdoor')}>
-                {ioEmojis[filters.indoorOutdoor]} {ioLabels[filters.indoorOutdoor]}
+              <button style={pill()} onClick={() => cycleOption(filters.indoorOutdoor, ioOptions, 'indoorOutdoor')}>
+                {ioLabels[filters.indoorOutdoor]}
               </button>
-
-              {/* Energy */}
-              <button style={pillStyle()} onClick={() => cycleOption(filters.energyLevel, energyOptions, 'energyLevel')}>
-                {energyEmojis[filters.energyLevel]} {energyLabels[filters.energyLevel]}
+              <button style={pill()} onClick={() => cycleOption(filters.energyLevel, energyOptions, 'energyLevel')}>
+                {energyLabels[filters.energyLevel]}
               </button>
-
-              {/* Transport */}
-              <button style={pillStyle()} onClick={() => cycleOption(filters.transport, transportOptions, 'transport')}>
-                {filters.transport === 'car' ? '🚗' : '🚌'} {filters.transport === 'car' ? 'Car' : 'Bus'}
+              <button style={pill()} onClick={() => cycleOption(filters.transport, transportOptions, 'transport')}>
+                {transportLabels[filters.transport]}
               </button>
-
-              {/* Budget */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                <button
-                  style={pillStyle()}
-                  onClick={() => {
-                    const v = Math.max(0, filters.budgetPerChild - 5);
-                    handleFilterChange('budgetPerChild', v);
-                  }}
-                >
-                  −
-                </button>
-                <span style={{ ...pillStyle(), cursor: 'default', background: 'var(--color-bg-card)' }}>
-                  💰 £{filters.budgetPerChild}
-                </span>
-                <button
-                  style={pillStyle()}
-                  onClick={() => {
-                    const v = Math.min(30, filters.budgetPerChild + 5);
-                    handleFilterChange('budgetPerChild', v);
-                  }}
-                >
-                  +
-                </button>
+                <button style={pill()} onClick={() => { const v = Math.max(0, filters.budgetPerChild - 5); handleFilterChange('budgetPerChild', v); }}>−</button>
+                <span style={{ ...pill(), cursor: 'default' }}>£{filters.budgetPerChild}</span>
+                <button style={pill()} onClick={() => { const v = Math.min(30, filters.budgetPerChild + 5); handleFilterChange('budgetPerChild', v); }}>+</button>
               </div>
-
-              {/* Surprise me toggle */}
-              <button
-                style={pillStyle(filters.surpriseMe)}
-                onClick={() => handleFilterChange('surpriseMe', !filters.surpriseMe)}
-              >
-                🎲 Surprise
+              <button style={pill(filters.surpriseMe)} onClick={() => handleFilterChange('surpriseMe', !filters.surpriseMe)}>
+                Surprise
               </button>
-
-              {/* Refresh */}
               {hasResults && (
                 <button
-                  style={{ ...pillStyle(), background: 'var(--color-orange)', color: '#fff', border: '1.5px solid var(--color-orange)' }}
-                  onClick={() => fetchActivities(filters)}
+                  style={{ ...pill(), background: 'var(--color-brand)', color: '#fff', border: '1.5px solid var(--color-brand)' }}
+                  onClick={() => fetchActivities(filters, true)}
                   disabled={loading}
                 >
-                  {loading ? '…' : '↻ Refresh'}
+                  {loading ? '…' : 'Refresh'}
                 </button>
               )}
             </div>
@@ -367,9 +410,9 @@ export default function DiscoverPage() {
 
         {/* Full form (expandable) */}
         {showFullForm && hasChildren && (
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 20 }}>
             <InputForm
-              onSubmit={(f) => { setShowFullForm(false); fetchActivities(f); }}
+              onSubmit={(f) => { setShowFullForm(false); fetchActivities(f, true); }}
               loading={loading}
               initialFilters={filters}
               onFiltersChange={(f) => setFilters(f)}
@@ -377,76 +420,62 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* Loading skeleton */}
+        {/* Loading skeletons */}
         {loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="card skeleton" style={{ height: 200, borderRadius: 'var(--radius-card)' }} />
+              <div key={i} className="card skeleton" style={{ height: 180 }} />
             ))}
           </div>
         )}
 
         {/* Error */}
         {error && !loading && (
-          <p style={{ color: '#DC2626', fontSize: '0.875rem', marginTop: 16, textAlign: 'center' }}>
-            {error}
-          </p>
+          <div style={{ background: 'var(--color-rose-light)', border: '1.5px solid #FECDD3', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+            <p style={{ color: 'var(--color-rose)', fontSize: '0.875rem', margin: 0, fontWeight: 600 }}>{error}</p>
+          </div>
         )}
 
         {/* Results */}
         {!loading && hasResults && (
           <>
-            {/* Results header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, margin: 0 }}>
-                Today&apos;s picks 🎯
-              </h2>
-              <button
-                className="btn-ghost"
-                onClick={() => setShowFullForm((v) => !v)}
-                style={{ fontSize: '0.8rem' }}
-              >
-                {showFullForm ? '✕ Close' : '⚙ More filters'}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1rem' }}>Today&apos;s picks</span>
+                {isFromCache && cachedAt && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', marginLeft: 8 }}>
+                    From {minutesAgo(cachedAt)} · pull down to refresh
+                  </span>
+                )}
+              </div>
+              <button className="btn-ghost" onClick={() => setShowFullForm((v) => !v)} style={{ fontSize: '0.78rem' }}>
+                {showFullForm ? 'Close' : 'More filters'}
               </button>
             </div>
 
             {activities.length === 0 ? (
               <div className="card" style={{ padding: '40px 24px', textAlign: 'center' }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>
-                  All sorted!
-                </h3>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>All done!</h3>
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                  You&apos;ve reviewed all today&apos;s suggestions. Tap ↻ Refresh for more ideas.
+                  You&apos;ve reviewed today&apos;s suggestions. Pull down or tap Refresh for more.
                 </p>
-                <button className="btn-primary" style={{ marginTop: 20 }} onClick={() => fetchActivities(filters)}>
-                  Find more adventures
+                <button className="btn-primary" style={{ marginTop: 20 }} onClick={() => fetchActivities(filters, true)}>
+                  Find more
                 </button>
               </div>
             ) : resultsMode === 'stack' ? (
-              <SwipeCard
-                activities={activities}
-                total={activityTotal}
-                onAccept={handleAccept}
-                onSkip={handleSkip}
-              />
+              <SwipeCard activities={activities} total={activityTotal} onAccept={handleAccept} onSkip={handleSkip} />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {activities.map((activity, i) => (
-                  <ActivityCard
-                    key={activity.id}
-                    activity={activity}
-                    index={i}
-                    onAccept={handleAccept}
-                    onReject={handleRejectClick}
-                  />
+                  <ActivityCard key={activity.id} activity={activity} index={i} onAccept={handleAccept} onReject={handleRejectClick} />
                 ))}
               </div>
             )}
           </>
         )}
 
-        {/* First-time state: no children */}
+        {/* First-time: no children */}
         {!hasChildren && !loading && (
           <InputForm
             onSubmit={(f) => { saveFilters(f); fetchActivities(f); }}
@@ -455,7 +484,7 @@ export default function DiscoverPage() {
             onFiltersChange={(f) => setFilters(f)}
           />
         )}
-      </main>
+      </div>
 
       <Navigation />
 

@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
-  { href: '/', label: 'Discover', emoji: '🗺️' },
-  { href: '/history', label: 'History', emoji: '📖' },
-  { href: '/settings', label: 'Settings', emoji: '⚙️' },
-  { href: '/admin', label: 'Admin', emoji: '🔐' },
+  { href: '/',         label: 'Discover' },
+  { href: '/history',  label: 'History'  },
+  { href: '/settings', label: 'Settings' },
+  { href: '/admin',    label: 'Admin'    },
 ];
 
 export default function Navigation() {
@@ -20,14 +20,14 @@ export default function Navigation() {
         bottom: 0,
         left: 0,
         right: 0,
-        background: 'rgba(255, 251, 247, 0.92)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        background: 'rgba(250, 250, 249, 0.94)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid var(--color-border)',
         display: 'flex',
-        padding: '6px 8px max(10px, env(safe-area-inset-bottom)) 8px',
+        padding: '8px 12px max(12px, env(safe-area-inset-bottom)) 12px',
+        gap: 4,
         zIndex: 50,
-        boxShadow: '0 -4px 24px rgba(249, 115, 22, 0.06), 0 -1px 0 var(--color-border)',
       }}
     >
       {TABS.map((tab) => {
@@ -39,43 +39,21 @@ export default function Navigation() {
             style={{
               flex: 1,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: 3,
-              padding: '6px 4px',
+              justifyContent: 'center',
+              padding: '9px 8px',
               textDecoration: 'none',
-              color: active ? 'var(--color-orange)' : 'var(--color-text-faint)',
-              transition: 'color 0.15s',
-              position: 'relative',
+              borderRadius: 10,
+              background: active ? 'var(--color-brand-light)' : 'transparent',
+              color: active ? 'var(--color-brand-dark)' : 'var(--color-text-faint)',
+              transition: 'all 0.15s',
+              fontFamily: 'var(--font-display)',
+              fontWeight: active ? 800 : 600,
+              fontSize: '0.72rem',
+              letterSpacing: active ? '0.01em' : 'normal',
             }}
           >
-            {/* Active pill background */}
-            {active && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 2,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 44,
-                  height: 36,
-                  background: 'var(--color-orange-light)',
-                  borderRadius: 12,
-                  zIndex: -1,
-                }}
-              />
-            )}
-            <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.emoji}</span>
-            <span
-              style={{
-                fontSize: '0.65rem',
-                fontFamily: 'var(--font-display)',
-                fontWeight: active ? 800 : 600,
-                letterSpacing: active ? '0.01em' : 'normal',
-              }}
-            >
-              {tab.label}
-            </span>
+            {tab.label}
           </Link>
         );
       })}
