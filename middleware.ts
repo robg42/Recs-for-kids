@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const PUBLIC_PATHS = ['/login', '/auth/verify', '/api/auth'];
+const PUBLIC_PATHS = ['/login', '/api/auth'];
 
+// Inline getSecret here — middleware runs on Edge, cannot import Node-only lib/auth.ts
+// The validation logic must be kept in sync with lib/auth.ts:getSecret()
 function getSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET ?? '';
+  if (secret.length < 32) {
+    // In production this causes all requests to redirect to /login, making misconfiguration obvious
+    throw new Error('AUTH_SECRET must be at least 32 characters');
+  }
   return new TextEncoder().encode(secret);
 }
 

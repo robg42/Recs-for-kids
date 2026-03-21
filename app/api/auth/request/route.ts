@@ -4,12 +4,12 @@ import { isUserAllowed } from '@/lib/users';
 import { sendMagicLink } from '@/lib/email';
 import { rateLimit } from '@/lib/rate-limit';
 import { initSchema } from '@/lib/schema';
+import { getClientIp } from '@/lib/ip';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  // Rate limit: 5 requests per 15 min per IP
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const ip = getClientIp(req);
   const { allowed } = rateLimit(`magic-link:${ip}`, 5, 15 * 60 * 1000);
   if (!allowed) {
     return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 });

@@ -1,6 +1,6 @@
 import { getDb } from '@/lib/db';
 
-const SEED_EMAIL = 'mail@robgregg.com';
+const SEED_EMAIL = process.env.SEED_EMAIL ?? 'mail@robgregg.com';
 
 export async function initSchema(): Promise<void> {
   const db = getDb();
@@ -15,12 +15,21 @@ export async function initSchema(): Promise<void> {
     )
   `);
 
-  // Admin sessions
+  // Admin sessions — DB-backed so they are revocable
   await db.execute(`
     CREATE TABLE IF NOT EXISTS admin_sessions (
       id         TEXT PRIMARY KEY,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT NOT NULL
+    )
+  `);
+
+  // Single-use magic link token hashes (SHA-256 of the raw JWT)
+  // Prevents replay of a magic link that was already consumed
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS magic_tokens (
+      token_hash TEXT PRIMARY KEY,
+      used_at    TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 
@@ -32,6 +41,5 @@ export async function initSchema(): Promise<void> {
       sql: 'INSERT OR IGNORE INTO users (email, invited_by) VALUES (?, ?)',
       args: [SEED_EMAIL, 'system'],
     });
-    console.log(`[schema] Seeded initial user: ${SEED_EMAIL}`);
   }
 }

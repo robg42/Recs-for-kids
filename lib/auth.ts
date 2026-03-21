@@ -1,12 +1,15 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { getDb } from '@/lib/db';
+import { createHash } from 'crypto';
 
 const SESSION_COOKIE = 'rfk-session';
 const ADMIN_COOKIE = 'rfk-admin';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 const ADMIN_MAX_AGE = 60 * 60 * 8;          // 8 hours
 
-function getSecret(): Uint8Array {
+// Exported so middleware.ts can import a single, validated copy
+export function getSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET ?? '';
   if (secret.length < 32) throw new Error('AUTH_SECRET must be at least 32 characters');
   return new TextEncoder().encode(secret);
@@ -29,6 +32,22 @@ export async function verifyMagicToken(token: string): Promise<string | null> {
     return payload.email;
   } catch {
     return null;
+  }
+}
+
+// Mark a magic link token as used. Returns false if already consumed.
+export async function consumeMagicToken(token: string): Promise<boolean> {
+  const hash = createHash('sha256').update(token).digest('hex');
+  const db = getDb();
+  try {
+    // This will throw on duplicate primary key if already used
+    await db.execute({
+      sql: 'INSERT INTO magic_tokens (token_hash) VALUES (?)',
+      args: [hash],
+    });
+    return true;
+  } catch {
+    return false; // Already consumed
   }
 }
 
@@ -69,10 +88,19 @@ export async function clearSessionCookie(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-// ── Admin session (8 hours) ──────────────────────────────────────────────────
+// ── Admin session (8 hours, DB-backed for revocability) ─────────────────────
 
 export async function setAdminCookie(): Promise<void> {
-  const token = await new SignJWT({ type: 'admin' })
+  const sessionId = crypto.randomUUID();
+  const db = getDb();
+
+  // Persist session so it can be revoked server-side
+  await db.execute({
+    sql: "INSERT INTO admin_sessions (id, expires_at) VALUES (?, datetime('now', '+8 hours'))",
+    args: [sessionId],
+  });
+
+  const token = await new SignJWT({ type: 'admin', sid: sessionId })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('8h')
@@ -93,14 +121,39 @@ export async function getAdminSession(): Promise<boolean> {
     const cookieStore = await cookies();
     const token = cookieStore.get(ADMIN_COOKIE)?.value;
     if (!token) return false;
+
     const { payload } = await jwtVerify(token, getSecret());
-    return payload.type === 'admin';
+    if (payload.type !== 'admin' || typeof payload.sid !== 'string') return false;
+
+    // Verify the session still exists in the DB (allows server-side revocation)
+    const db = getDb();
+    const result = await db.execute({
+      sql: "SELECT id FROM admin_sessions WHERE id = ? AND expires_at > datetime('now')",
+      args: [payload.sid],
+    });
+    return result.rows.length > 0;
   } catch {
     return false;
   }
 }
 
 export async function clearAdminCookie(): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(ADMIN_COOKIE)?.value;
+    if (token) {
+      const { payload } = await jwtVerify(token, getSecret());
+      if (typeof payload.sid === 'string') {
+        const db = getDb();
+        await db.execute({
+          sql: 'DELETE FROM admin_sessions WHERE id = ?',
+          args: [payload.sid],
+        });
+      }
+    }
+  } catch {
+    // Ignore errors during logout — always clear the cookie
+  }
   const cookieStore = await cookies();
   cookieStore.delete(ADMIN_COOKIE);
 }

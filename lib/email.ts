@@ -15,11 +15,12 @@ const FROM_EMAIL = process.env.FROM_EMAIL ?? 'adventures@robgregg.com';
 export async function sendMagicLink(email: string, token: string): Promise<boolean> {
   const client = getClient();
   if (!client) {
-    console.warn('[email] No Resend API key — magic link:', `${APP_URL}/auth/verify?token=${token}`);
+    // Log that a link was generated, but NEVER include the token in logs
+    console.warn('[email] No Resend API key — magic link generated for:', email, '(token withheld from logs)');
     return false;
   }
 
-  const link = `${APP_URL}/auth/verify?token=${encodeURIComponent(token)}`;
+  const link = `${APP_URL}/api/auth/verify?token=${encodeURIComponent(token)}`;
 
   try {
     const { error } = await client.emails.send({
@@ -32,7 +33,7 @@ export async function sendMagicLink(email: string, token: string): Promise<boole
             🗺️ Family Adventures
           </h1>
           <p style="font-size: 16px; color: #78716C; margin: 0 0 32px;">
-            Here's your sign-in link. It expires in 15 minutes.
+            Here's your sign-in link. It expires in 15 minutes and can only be used once.
           </p>
           <a href="${link}" style="
             display: inline-block;
@@ -54,12 +55,12 @@ export async function sendMagicLink(email: string, token: string): Promise<boole
     });
 
     if (error) {
-      console.error('[email] Send error:', error);
+      console.error('[email] Send error for:', email);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error('[email] Unexpected error:', err);
+  } catch {
+    console.error('[email] Unexpected error sending to:', email);
     return false;
   }
 }
