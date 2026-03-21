@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Navigation from '@/components/Navigation';
 
 interface User {
   id: number;
@@ -128,64 +129,68 @@ export default function AdminPage() {
 
   if (view === 'login') {
     return (
-      <div
-        style={{
-          minHeight: '100dvh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-          background: 'var(--color-bg)',
-        }}
-      >
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.5rem',
-              fontWeight: 800,
-              marginBottom: 24,
-              textAlign: 'center',
-            }}
-          >
-            🔐 Admin
-          </h1>
-          <form onSubmit={handleLogin} className="card" style={{ padding: '24px' }}>
-            <label className="field-label" htmlFor="admin-pw">
-              Admin password
-            </label>
-            <input
-              id="admin-pw"
-              type="password"
-              className="text-input"
-              style={{ marginBottom: 16 }}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-            {loginError && (
-              <p style={{ color: '#DC2626', fontSize: '0.875rem', marginBottom: 16 }}>
-                {loginError}
-              </p>
-            )}
-            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loginLoading}>
-              {loginLoading ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
+      <>
+        <div
+          style={{
+            minHeight: '100dvh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px 24px 100px',
+            background: 'var(--color-bg)',
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: 380 }}>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.5rem',
+                fontWeight: 800,
+                marginBottom: 24,
+                textAlign: 'center',
+              }}
+            >
+              🔐 Admin
+            </h1>
+            <form onSubmit={handleLogin} className="card" style={{ padding: '24px' }}>
+              <label className="field-label" htmlFor="admin-pw">
+                Admin password
+              </label>
+              <input
+                id="admin-pw"
+                type="password"
+                className="text-input"
+                style={{ marginBottom: 16 }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+              {loginError && (
+                <p style={{ color: '#DC2626', fontSize: '0.875rem', marginBottom: 16 }}>
+                  {loginError}
+                </p>
+              )}
+              <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loginLoading}>
+                {loginLoading ? 'Signing in…' : 'Sign in'}
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
+        <Navigation />
+      </>
     );
   }
 
   const totalUsers = users.length;
 
   return (
+    <>
     <div
       style={{
         maxWidth: 600,
         margin: '0 auto',
-        padding: '32px 16px 64px',
+        padding: '32px 16px 100px',
         minHeight: '100dvh',
         background: 'var(--color-bg)',
       }}
@@ -404,5 +409,7 @@ export default function AdminPage() {
         )}
       </section>
     </div>
+    <Navigation />
+    </>
   );
 }

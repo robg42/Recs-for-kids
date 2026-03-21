@@ -7,6 +7,7 @@ const TABS = [
   { href: '/', label: 'Discover', emoji: '🗺️' },
   { href: '/history', label: 'History', emoji: '📖' },
   { href: '/settings', label: 'Settings', emoji: '⚙️' },
+  { href: '/admin', label: 'Admin', emoji: '🔐' },
 ];
 
 export default function Navigation() {
