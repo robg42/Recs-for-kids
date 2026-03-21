@@ -33,6 +33,12 @@ export async function initSchema(): Promise<void> {
     )
   `);
 
+  // Clean up token hashes older than 1 hour — tokens expire after 15 min so
+  // these rows serve no security purpose and would otherwise grow indefinitely
+  await db.execute(
+    "DELETE FROM magic_tokens WHERE used_at < datetime('now', '-1 hour')"
+  );
+
   // Seed initial admin user if no users exist
   const existing = await db.execute('SELECT COUNT(*) as count FROM users');
   const count = existing.rows[0]?.count ?? 0;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { setAdminCookie } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/ip';
@@ -22,7 +23,15 @@ export async function POST(req: NextRequest) {
   }
 
   const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword || password !== adminPassword) {
+  if (!adminPassword) {
+    return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
+  }
+  // Constant-time comparison prevents timing side-channel attacks
+  const supplied = Buffer.from(password.slice(0, 1024)); // cap to prevent DoS via huge input
+  const expected = Buffer.from(adminPassword);
+  const match =
+    supplied.length === expected.length && timingSafeEqual(supplied, expected);
+  if (!match) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
   }
 

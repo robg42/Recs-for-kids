@@ -389,7 +389,7 @@ export default function AdminPage() {
                     {u.invitedBy === 'system' ? ' · seed user' : ''}
                   </div>
                 </div>
-                {u.email !== 'mail@robgregg.com' && (
+                {u.invitedBy !== 'system' && (
                   <button
                     className="btn-ghost"
                     onClick={() => handleRemoveUser(u.id, u.email)}

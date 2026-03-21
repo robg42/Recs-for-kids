@@ -1,11 +1,30 @@
-// In-memory rate limiter (resets on serverless cold start — acceptable for hobby/personal use)
+// In-memory rate limiter.
+// Note: resets on serverless cold start — acceptable for a personal/hobby app.
+// Each Map entry is evicted after its window expires to bound memory usage.
+
 const store = new Map<string, { count: number; resetAt: number }>();
+
+let evictionScheduled = false;
+
+function scheduleEviction() {
+  if (evictionScheduled) return;
+  evictionScheduled = true;
+  setTimeout(() => {
+    const now = Date.now();
+    for (const [key, entry] of store.entries()) {
+      if (now > entry.resetAt) store.delete(key);
+    }
+    evictionScheduled = false;
+  }, 60_000);
+}
 
 export function rateLimit(
   key: string,
   maxRequests: number,
   windowMs: number
 ): { allowed: boolean; remaining: number } {
+  scheduleEviction();
+
   const now = Date.now();
   const entry = store.get(key);
 
