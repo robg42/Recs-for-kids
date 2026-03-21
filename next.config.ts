@@ -2,11 +2,12 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === 'development';
 
-// unsafe-inline/eval are required by Next.js dev server only.
-// In production they are removed so CSP actually protects against XSS.
+// Next.js App Router requires unsafe-inline for hydration scripts in all environments.
+// unsafe-eval is only needed by the dev server (hot reload).
+// Proper elimination of unsafe-inline requires nonce-based CSP — tracked for a future iteration.
 const scriptSrc = isDev
   ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-  : "script-src 'self'";
+  : "script-src 'self' 'unsafe-inline'";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
