@@ -15,12 +15,13 @@
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-hot-toast": "^2.5.2",
-    "resend": "^6.9.3"
+    "nodemailer": "^6.9.16",
+    "react-hot-toast": "^2.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

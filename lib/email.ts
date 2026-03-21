@@ -1,32 +1,36 @@
-import { Resend } from 'resend';
-
-let _client: Resend | null = null;
-
-function getClient(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
-  if (!_client) _client = new Resend(apiKey);
-  return _client;
-}
+import nodemailer from 'nodemailer';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://adventures.robgregg.com';
-const FROM_EMAIL = process.env.FROM_EMAIL ?? 'adventures@robgregg.com';
+
+function getTransporter() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+
+  if (!user || !pass) return null;
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+}
 
 export async function sendMagicLink(email: string, token: string): Promise<boolean> {
-  const client = getClient();
-  if (!client) {
-    // Log that a link was generated, but NEVER include the token in logs
-    console.warn('[email] No Resend API key — magic link generated for:', email, '(token withheld from logs)');
+  const transporter = getTransporter();
+
+  if (!transporter) {
+    // Never log the token — only note that a link was generated
+    console.warn('[email] Gmail credentials not set — magic link generated for:', email, '(token withheld from logs)');
     return false;
   }
 
   const link = `${APP_URL}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  const from = process.env.GMAIL_USER;
 
   try {
-    const { error } = await client.emails.send({
-      from: FROM_EMAIL,
+    await transporter.sendMail({
+      from: `"Family Adventures 🗺️" <${from}>`,
       to: email,
-      subject: "Your link to Family Adventures 🗺️",
+      subject: 'Your sign-in link for Family Adventures',
       html: `
         <div style="font-family: 'Helvetica Neue', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
           <h1 style="font-size: 28px; font-weight: 800; color: #1C1917; margin: 0 0 8px;">
@@ -52,15 +56,11 @@ export async function sendMagicLink(email: string, token: string): Promise<boole
           </p>
         </div>
       `,
+      text: `Sign in to Family Adventures\n\nClick this link (expires in 15 minutes):\n${link}\n\nIf you didn't request this, ignore this email.`,
     });
-
-    if (error) {
-      console.error('[email] Send error for:', email);
-      return false;
-    }
     return true;
-  } catch {
-    console.error('[email] Unexpected error sending to:', email);
+  } catch (err) {
+    console.error('[email] Failed to send to:', email, (err as Error).message);
     return false;
   }
 }
