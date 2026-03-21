@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Per-user rate limit — prevents API cost abuse by any single authenticated user
-  const { allowed } = rateLimit(`activities:${session.email}`, 10, 60 * 1000);
+  // Per-user rate limit: 20 per minute (generous for filter exploration)
+  const { allowed } = rateLimit(`activities:${session.email}`, 20, 60 * 1000);
   if (!allowed) {
     return NextResponse.json<GenerateActivitiesResponse>(
       { activities: [], weather: fallbackWeather(), error: 'Too many requests. Please slow down.' },
@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Also rate-limit by IP as a secondary guard
+  // Secondary IP guard
   const ip = getClientIp(req);
-  const { allowed: ipAllowed } = rateLimit(`activities-ip:${ip}`, 20, 60 * 1000);
+  const { allowed: ipAllowed } = rateLimit(`activities-ip:${ip}`, 40, 60 * 1000);
   if (!ipAllowed) {
     return NextResponse.json<GenerateActivitiesResponse>(
       { activities: [], weather: fallbackWeather(), error: 'Too many requests.' },

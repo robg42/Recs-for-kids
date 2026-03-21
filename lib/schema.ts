@@ -54,11 +54,22 @@ export async function initSchema(): Promise<void> {
     )
   `);
 
-  // Server-side activity cache — survives browser/device changes, enables prefetch
+  // Per-user activity cache — survives browser/device changes, enables prefetch
   await db.execute(`
     CREATE TABLE IF NOT EXISTS activity_cache (
       email      TEXT PRIMARY KEY,
       data       TEXT NOT NULL,
+      cached_at  INTEGER NOT NULL
+    )
+  `);
+
+  // Shared suggestion pool — reuse generated activities across users with
+  // similar location + conditions to minimise Anthropic/Places API calls
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS suggestion_pool (
+      cache_key  TEXT PRIMARY KEY,
+      data       TEXT NOT NULL,
+      hit_count  INTEGER NOT NULL DEFAULT 1,
       cached_at  INTEGER NOT NULL
     )
   `);
