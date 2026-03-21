@@ -35,9 +35,9 @@
   --font-body:           var(--font-inter), 'Inter', system-ui, sans-serif;
 
   /* Radii */
-  --radius-card:         16px;
-  --radius-button:       12px;
-  --radius-pill:         999px;
+  --radius-card:         8px;
+  --radius-button:       6px;
+  --radius-pill:         4px;
 
   /* Shadows */
   --shadow-card:         0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);

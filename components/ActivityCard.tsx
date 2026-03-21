@@ -75,7 +75,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
       >
         {/* Photo hero or emoji header */}
         {hasPhoto && photoUrl ? (
-          <div style={{ position: 'relative', height: 180, overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
+          <div style={{ position: 'relative', height: 180, overflow: 'hidden', borderRadius: '8px 8px 0 0' }}>
             <img
               src={photoUrl}
               alt={activity.venue!.name}
@@ -115,7 +115,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
               position: 'relative',
               height: 140,
               overflow: 'hidden',
-              borderRadius: '15px 15px 0 0',
+              borderRadius: '8px 8px 0 0',
               background: CATEGORY_GRADIENT[activity.category] ?? 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
             }}
           >
@@ -147,7 +147,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
               fontSize: '0.72rem',
               fontWeight: 700,
               padding: '3px 10px',
-              borderRadius: 999,
+              borderRadius: 4,
               fontFamily: 'var(--font-display)',
             }}
           >
@@ -161,7 +161,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
               fontSize: '0.72rem',
               fontWeight: 700,
               padding: '3px 10px',
-              borderRadius: 999,
+              borderRadius: 4,
               fontFamily: 'var(--font-display)',
             }}
           >
@@ -176,7 +176,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                 fontSize: '0.72rem',
                 fontWeight: 700,
                 padding: '3px 10px',
-                borderRadius: 999,
+                borderRadius: 4,
                 fontFamily: 'var(--font-display)',
               }}
             >
@@ -192,7 +192,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                 fontSize: '0.72rem',
                 fontWeight: 700,
                 padding: '3px 10px',
-                borderRadius: 999,
+                borderRadius: 4,
                 fontFamily: 'var(--font-display)',
               }}
             >
@@ -281,7 +281,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                 key={i}
                 style={{
                   background: 'var(--color-bg)',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   padding: '10px 14px',
                   borderLeft: '3px solid var(--color-orange)',
                 }}
@@ -308,7 +308,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
             <div
               style={{
                 background: 'var(--color-bg)',
-                borderRadius: 12,
+                borderRadius: 6,
                 padding: '12px 14px',
                 marginBottom: 20,
               }}

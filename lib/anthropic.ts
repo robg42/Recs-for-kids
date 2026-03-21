@@ -158,7 +158,8 @@ function generateId(): string {
 function validateActivity(
   a: unknown,
   fallbackEnergyLevel: EnergyLevel,
-  fallbackIndoorOutdoor: IndoorOutdoor
+  fallbackIndoorOutdoor: IndoorOutdoor,
+  originalVenues: Venue[] = []
 ): Activity | null {
   if (!a || typeof a !== 'object') return null;
   const raw = a as Record<string, unknown>;
@@ -224,12 +225,22 @@ function validateActivity(
   if (raw.venue && typeof raw.venue === 'object') {
     const v = raw.venue as Record<string, unknown>;
     if (typeof v.name === 'string' && typeof v.address === 'string') {
+      const placeId = typeof v.placeId === 'string' ? v.placeId.slice(0, 200) : '';
+      // Look up the original Places API venue to restore rich data that Claude doesn't echo back
+      const original = originalVenues.find((ov) => ov.placeId === placeId)
+        ?? originalVenues.find((ov) => ov.name.toLowerCase() === v.name!.toString().toLowerCase());
       venue = {
-        placeId: typeof v.placeId === 'string' ? v.placeId.slice(0, 200) : '',
+        placeId,
         name: v.name.slice(0, 100),
         address: v.address.slice(0, 200),
-        openNow: true,
-        type: 'venue',
+        openNow: original?.openNow ?? true,
+        type: original?.type ?? 'venue',
+        photoName: original?.photoName,
+        website: original?.website,
+        phoneNumber: original?.phoneNumber,
+        openingHours: original?.openingHours,
+        priceLevel: original?.priceLevel,
+        rating: original?.rating,
       };
     }
   }
@@ -287,7 +298,7 @@ export async function generateActivities(
 
     const activities = parsed
       .slice(0, 3)
-      .map((a) => validateActivity(a, filters.energyLevel, filters.indoorOutdoor))
+      .map((a) => validateActivity(a, filters.energyLevel, filters.indoorOutdoor, venues))
       .filter((a): a is Activity => a !== null);
 
     return activities.length > 0 ? activities : getMockActivities(children);
