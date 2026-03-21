@@ -211,12 +211,16 @@ export default function DiscoverPage() {
     [hasChildren, prefs, requestLocation, router]
   );
 
-  // Auto-fetch once when prefs first become available — skip if valid cache exists
+  // Auto-fetch once when prefs first become available.
+  // If cache is very fresh (< 10 min) skip; otherwise fetch fresh results
+  // even if cache is shown (so suggestions change over time).
+  const FRESH_THRESHOLD_MS = 10 * 60 * 1000;
   useEffect(() => {
     if (!autoFetchedRef.current && hasChildren && prefs) {
       autoFetchedRef.current = true;
       const cache = loadResultsCache();
-      if (!cache || cache.activities.length === 0) {
+      const isFresh = cache && cache.activities.length > 0 && (Date.now() - cache.savedAt < FRESH_THRESHOLD_MS);
+      if (!isFresh) {
         fetchActivities(filters);
       }
     }
