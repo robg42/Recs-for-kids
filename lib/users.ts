@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db';
+import type { ChildProfile } from '@/types';
 
 export interface User {
   id: number;
@@ -40,4 +41,27 @@ export async function addUser(email: string, invitedBy: string): Promise<void> {
 export async function removeUser(id: number): Promise<void> {
   const db = getDb();
   await db.execute({ sql: 'DELETE FROM users WHERE id = ?', args: [id] });
+}
+
+export async function getUserChildren(email: string): Promise<ChildProfile[]> {
+  const db = getDb();
+  const result = await db.execute({
+    sql: 'SELECT children_json FROM users WHERE email = ? COLLATE NOCASE LIMIT 1',
+    args: [email.trim()],
+  });
+  const raw = result.rows[0]?.children_json as string | null;
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as ChildProfile[];
+  } catch {
+    return [];
+  }
+}
+
+export async function setUserChildren(email: string, children: ChildProfile[]): Promise<void> {
+  const db = getDb();
+  await db.execute({
+    sql: 'UPDATE users SET children_json = ? WHERE email = ? COLLATE NOCASE',
+    args: [JSON.stringify(children), email.trim()],
+  });
 }

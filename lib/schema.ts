@@ -8,12 +8,16 @@ export async function initSchema(): Promise<void> {
   // Users table — invite-only access list
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
-      id        INTEGER PRIMARY KEY AUTOINCREMENT,
-      email     TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      invited_by TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      invited_by    TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      children_json TEXT
     )
   `);
+
+  // Migrate existing databases that predate the children_json column
+  await db.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS children_json TEXT`);
 
   // Admin sessions — DB-backed so they are revocable
   await db.execute(`
