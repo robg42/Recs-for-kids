@@ -94,17 +94,39 @@ export default function DiscoverPage() {
 
   const autoFetchedRef = useRef(false);
 
-  // Load cached results instantly on mount
+  // Load cached results instantly on mount — check server cache first, fallback to localStorage
   useEffect(() => {
-    const cache = loadResultsCache();
-    if (cache && cache.activities.length > 0) {
-      setActivities(cache.activities);
-      setActivityTotal(cache.activities.length);
-      setWeather(cache.weather);
-      setHasResults(true);
-      setCachedAt(cache.savedAt);
-      setIsFromCache(true);
+    async function loadCache() {
+      // Try server cache first (persists across devices/browsers)
+      try {
+        const res = await fetch('/api/activities/cached');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.found && Array.isArray(data.activities) && data.activities.length > 0) {
+            setActivities(data.activities);
+            setActivityTotal(data.activities.length);
+            setWeather(data.weather ?? null);
+            setHasResults(true);
+            setCachedAt(data.cachedAt ?? Date.now());
+            setIsFromCache(true);
+            return;
+          }
+        }
+      } catch {
+        // Fall through to localStorage
+      }
+      // Fallback: localStorage cache
+      const cache = loadResultsCache();
+      if (cache && cache.activities.length > 0) {
+        setActivities(cache.activities);
+        setActivityTotal(cache.activities.length);
+        setWeather(cache.weather);
+        setHasResults(true);
+        setCachedAt(cache.savedAt);
+        setIsFromCache(true);
+      }
     }
+    loadCache();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -189,11 +211,14 @@ export default function DiscoverPage() {
     [hasChildren, prefs, requestLocation, router]
   );
 
-  // Auto-fetch once when prefs first become available with children
+  // Auto-fetch once when prefs first become available — skip if valid cache exists
   useEffect(() => {
     if (!autoFetchedRef.current && hasChildren && prefs) {
       autoFetchedRef.current = true;
-      fetchActivities(filters);
+      const cache = loadResultsCache();
+      if (!cache || cache.activities.length === 0) {
+        fetchActivities(filters);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasChildren, prefs]);

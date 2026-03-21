@@ -46,6 +46,23 @@ export async function initSchema(): Promise<void> {
     "DELETE FROM magic_tokens WHERE used_at < datetime('now', '-1 hour')"
   );
 
+  // Key/value settings store — used for session invalidation timestamp etc.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+
+  // Server-side activity cache — survives browser/device changes, enables prefetch
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS activity_cache (
+      email      TEXT PRIMARY KEY,
+      data       TEXT NOT NULL,
+      cached_at  INTEGER NOT NULL
+    )
+  `);
+
   // Ensure primary admin user always exists and has admin role
   await db.execute({
     sql: 'INSERT OR IGNORE INTO users (email, invited_by, is_admin) VALUES (?, ?, 1)',

@@ -77,10 +77,31 @@ export async function getSession(): Promise<{ email: string } | null> {
     if (!token) return null;
     const { payload } = await jwtVerify(token, getSecret());
     if (payload.type !== 'session' || typeof payload.email !== 'string') return null;
+
+    // Check if session was issued before the global invalidation timestamp
+    const db = getDb();
+    const row = await db.execute({
+      sql: "SELECT value FROM settings WHERE key = 'sessions_nbf' LIMIT 1",
+      args: [],
+    });
+    if (row.rows.length > 0) {
+      const nbf = new Date(row.rows[0].value as string).getTime();
+      const iat = (payload.iat ?? 0) * 1000;
+      if (iat < nbf) return null; // Issued before kill-all — treat as expired
+    }
+
     return { email: payload.email };
   } catch {
     return null;
   }
+}
+
+export async function invalidateAllSessions(): Promise<void> {
+  const db = getDb();
+  await db.execute({
+    sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('sessions_nbf', ?)",
+    args: [new Date().toISOString()],
+  });
 }
 
 export async function clearSessionCookie(): Promise<void> {

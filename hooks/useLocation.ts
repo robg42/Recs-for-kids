@@ -32,6 +32,8 @@ export function useLocation() {
         (pos) => {
           const { latitude: lat, longitude: lon } = pos.coords;
           setState({ lat, lon, error: null, loading: false });
+          // Store last known coords in a cookie so the server can prefetch on next login
+          document.cookie = `lc=${lat.toFixed(5)},${lon.toFixed(5)}; max-age=86400; path=/; SameSite=Lax`;
           resolve({ lat, lon });
         },
         (err) => {

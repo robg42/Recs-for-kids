@@ -410,8 +410,29 @@ export default function SettingsPage() {
           style={{ width: '100%' }}
           onClick={saveAll}
         >
-          {saved ? '✅ Saved!' : 'Save settings'}
+          {saved ? 'Saved' : 'Save settings'}
         </button>
+
+        {/* Sign out */}
+        <form action="/api/auth/logout" method="POST" style={{ marginTop: 12 }}>
+          <button
+            type="submit"
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: '1.5px solid var(--color-border)',
+              color: 'var(--color-text-muted)',
+              borderRadius: 'var(--radius-button)',
+              padding: '12px 20px',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+            }}
+          >
+            Sign out
+          </button>
+        </form>
       </main>
       <Navigation />
     </>

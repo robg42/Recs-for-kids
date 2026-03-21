@@ -5,6 +5,8 @@ import { generateActivities } from '@/lib/anthropic';
 import { getSession } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/ip';
+import { saveServerCache } from '@/lib/activity-cache';
+import { initSchema } from '@/lib/schema';
 import type { GenerateActivitiesRequest, GenerateActivitiesResponse } from '@/types';
 
 export const runtime = 'nodejs';
@@ -122,6 +124,15 @@ export async function POST(req: NextRequest) {
     );
 
     console.log(`[api/activities] Generated ${activities.length} activities for ${session.email}`);
+
+    // Persist to server-side cache so returning users get instant results
+    try {
+      await initSchema();
+      await saveServerCache(session.email, activities, weather, filters);
+    } catch (cacheErr) {
+      console.error('[api/activities] Cache save failed (non-fatal):', cacheErr);
+    }
+
     return NextResponse.json<GenerateActivitiesResponse>({ activities, weather });
   } catch (err) {
     console.error('[api/activities] Unhandled error:', err);
