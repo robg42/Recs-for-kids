@@ -51,6 +51,7 @@ function buildPrompt(
   const safeChildren = children.map((c) => ({
     name: sanitiseForPrompt(c.name),
     age: c.age,
+    interests: c.interests ? sanitiseForPrompt(c.interests) : null,
   }));
 
   const childrenDesc = safeChildren.map((c) => `${c.name} (age ${c.age})`).join(' and ');
@@ -89,7 +90,7 @@ function buildPrompt(
   return `You are a creative family activity expert helping a parent plan a fun, low-cost outing.
 
 FAMILY:
-${safeChildren.map((c) => `- ${c.name}, age ${c.age}`).join('\n')}
+${safeChildren.map((c) => `- ${c.name}, age ${c.age}${c.interests ? ` (known interests: ${c.interests})` : ''}`).join('\n')}
 
 TODAY'S CONDITIONS:
 - Weather: ${safeWeatherDesc}, ${weather.temperatureCelsius}°C${weather.isRaining ? ' (raining)' : ''}
@@ -114,11 +115,13 @@ RULES:
 - ${weather.isRaining ? 'It is raining — strongly favour indoor activities or rain-proof plans' : ''}
 - Titles should be imaginative (e.g. "Dinosaur Detective Mission" not "Museum Visit")
 - Plans should have 3–5 clear, fun steps
-- Explain why each activity works for each child using ONLY their age and developmental stage.
-  Do NOT invent personality traits, interests, or character assumptions.
-  Good: "At 7, children enjoy rule-based challenges and feel proud completing tasks independently."
-  Bad: "Chazzy loves detective activities and has strong focus."
-  Stick to facts about typical child development at that age.
+- Explain why each activity works for each child using their age, developmental stage, and any
+  known interests listed in the FAMILY section. Do NOT invent interests or personality traits
+  beyond what is explicitly listed.
+  Good: "At 7, children enjoy rule-based challenges — and with an interest in dinosaurs, the
+  fossil discovery trail will feel personally meaningful."
+  Bad (no listed interests): "Chazzy has strong focus and loves detective activities."
+  If no interests are listed, base reasoning solely on typical child development at that age.
 - Vary the activities: different energy levels, different types
 
 RESPONSE FORMAT:

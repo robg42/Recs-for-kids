@@ -21,6 +21,7 @@ export interface ChildProfile {
   id: string;
   name: string;
   age: number;
+  interests?: string; // free-text: e.g. "dinosaurs, drawing, football"
 }
 
 export interface ActivityFilters {
@@ -40,6 +41,10 @@ export interface Venue {
   openNow: boolean;
   type: string;
   photoName?: string;
+  website?: string;
+  phoneNumber?: string;
+  openingHours?: string[]; // human-readable weekday descriptions
+  priceLevel?: string;     // e.g. "PRICE_LEVEL_INEXPENSIVE"
 }
 
 export interface WhyItWorks {

@@ -40,9 +40,13 @@ interface PlacesApiPlace {
   primaryTypeDisplayName?: { text: string };
   shortFormattedAddress?: string;
   rating?: number;
-  currentOpeningHours?: { openNow: boolean };
+  currentOpeningHours?: { openNow: boolean; weekdayDescriptions?: string[] };
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
   primaryType?: string;
   photos?: Array<{ name: string }>;
+  websiteUri?: string;
+  nationalPhoneNumber?: string;
+  priceLevel?: string;
 }
 
 interface PlacesApiResponse {
@@ -83,7 +87,7 @@ export async function getNearbyVenues(
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
         'X-Goog-FieldMask':
-          'places.id,places.displayName,places.primaryType,places.primaryTypeDisplayName,places.shortFormattedAddress,places.rating,places.currentOpeningHours,places.photos',
+          'places.id,places.displayName,places.primaryType,places.primaryTypeDisplayName,places.shortFormattedAddress,places.rating,places.currentOpeningHours,places.regularOpeningHours,places.photos,places.websiteUri,places.nationalPhoneNumber,places.priceLevel',
       },
       body: JSON.stringify(body),
     });
@@ -109,6 +113,10 @@ export async function getNearbyVenues(
         openNow: p.currentOpeningHours?.openNow ?? true,
         type: p.primaryTypeDisplayName?.text ?? p.primaryType ?? 'venue',
         photoName: p.photos?.[0]?.name,
+        website: p.websiteUri,
+        phoneNumber: p.nationalPhoneNumber,
+        openingHours: p.currentOpeningHours?.weekdayDescriptions ?? p.regularOpeningHours?.weekdayDescriptions,
+        priceLevel: p.priceLevel,
       }));
 
     console.log(`[places] Found ${venues.length} venues (${venues.filter(v => v.photoName).length} with photos)`);

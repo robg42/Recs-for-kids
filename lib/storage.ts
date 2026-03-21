@@ -6,9 +6,11 @@ import type {
   CategoryWeights,
   Activity,
   RejectionReason,
+  ActivityFilters,
 } from '@/types';
 
 const STORAGE_KEY = 'recs-for-kids-prefs';
+const FILTERS_KEY = 'recs-for-kids-filters';
 const MAX_RECENT_IDS = 20;
 
 const DEFAULT_WEIGHTS: CategoryWeights = {
@@ -117,4 +119,20 @@ export function rejectActivity(
 export function clearHistory(): void {
   const prefs = loadPreferences();
   savePreferences({ ...prefs, history: [], recentActivityIds: [] });
+}
+
+export function saveFilters(filters: ActivityFilters): void {
+  if (!isBrowser()) return;
+  localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+}
+
+export function loadFilters(): ActivityFilters | null {
+  if (!isBrowser()) return null;
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ActivityFilters;
+  } catch {
+    return null;
+  }
 }

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ActivityFilters, TimeAvailable, IndoorOutdoor, EnergyLevel, Transport } from '@/types';
 
 interface Props {
   onSubmit: (filters: ActivityFilters) => void;
   loading: boolean;
+  initialFilters?: ActivityFilters;
+  onFiltersChange?: (filters: ActivityFilters) => void;
 }
 
 const DEFAULT_FILTERS: ActivityFilters = {
@@ -17,11 +19,20 @@ const DEFAULT_FILTERS: ActivityFilters = {
   surpriseMe: false,
 };
 
-export default function InputForm({ onSubmit, loading }: Props) {
-  const [filters, setFilters] = useState<ActivityFilters>(DEFAULT_FILTERS);
+export default function InputForm({ onSubmit, loading, initialFilters, onFiltersChange }: Props) {
+  const [filters, setFilters] = useState<ActivityFilters>(initialFilters ?? DEFAULT_FILTERS);
+
+  // Sync if parent changes initialFilters
+  useEffect(() => {
+    if (initialFilters) setFilters(initialFilters);
+  }, [initialFilters]);
 
   function set<K extends keyof ActivityFilters>(key: K, value: ActivityFilters[K]) {
-    setFilters((f) => ({ ...f, [key]: value }));
+    setFilters((f) => {
+      const next = { ...f, [key]: value };
+      onFiltersChange?.(next);
+      return next;
+    });
   }
 
   return (
@@ -126,13 +137,7 @@ export default function InputForm({ onSubmit, loading }: Props) {
       {/* Budget */}
       <div>
         <span className="field-label">Budget per child</span>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', fontWeight: 700 }}>
             £{filters.budgetPerChild}
           </span>
@@ -146,15 +151,7 @@ export default function InputForm({ onSubmit, loading }: Props) {
             style={{ flex: 1, accentColor: 'var(--color-orange)', height: 4 }}
           />
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '0.75rem',
-            color: 'var(--color-text-faint)',
-            marginTop: 4,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
           <span>Free</span>
           <span>£30</span>
         </div>

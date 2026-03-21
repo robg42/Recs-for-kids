@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [children, setChildren] = useState<ChildProfile[]>([]);
   const [newName, setNewName] = useState('');
   const [newAge, setNewAge] = useState('');
+  const [editingInterestsId, setEditingInterestsId] = useState<string | null>(null);
 
   // Default filters
   const [defaultTransport, setDefaultTransport] = useState<Transport>('car');
@@ -52,6 +53,10 @@ export default function SettingsPage() {
 
   function removeChild(id: string) {
     setChildren((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  function updateInterests(id: string, interests: string) {
+    setChildren((prev) => prev.map((c) => c.id === id ? { ...c, interests } : c));
   }
 
   function saveAll() {
@@ -118,53 +123,71 @@ export default function SettingsPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {children.map((c) => (
-              <div
-                key={c.id}
-                className="card"
-                style={{
-                  padding: '14px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span
-                    style={{
-                      width: 40,
-                      height: 40,
-                      background: 'var(--color-orange-light)',
-                      borderRadius: 999,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 20,
-                    }}
-                  >
-                    {c.age <= 5 ? '👶' : c.age <= 10 ? '🧒' : '👦'}
-                  </span>
-                  <div>
-                    <div
+              <div key={c.id} className="card" style={{ padding: '14px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span
                       style={{
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 700,
-                        fontSize: '0.95rem',
+                        width: 40,
+                        height: 40,
+                        background: 'var(--color-orange-light)',
+                        borderRadius: 999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 20,
                       }}
                     >
-                      {c.name}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                      Age {c.age}
+                      {c.age <= 5 ? '👶' : c.age <= 10 ? '🧒' : '👦'}
+                    </span>
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem' }}>
+                        {c.name}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Age {c.age}</div>
                     </div>
                   </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn-ghost"
+                      onClick={() => setEditingInterestsId(editingInterestsId === c.id ? null : c.id)}
+                      style={{ fontSize: '0.8rem', color: 'var(--color-orange)' }}
+                    >
+                      {editingInterestsId === c.id ? 'Done' : '✏️ Interests'}
+                    </button>
+                    <button
+                      className="btn-ghost"
+                      onClick={() => removeChild(c.id)}
+                      style={{ color: '#DC2626', fontSize: '0.8rem' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <button
-                  className="btn-ghost"
-                  onClick={() => removeChild(c.id)}
-                  style={{ color: '#DC2626', fontSize: '0.8rem' }}
-                >
-                  Remove
-                </button>
+                {/* Interests display / edit */}
+                {editingInterestsId === c.id ? (
+                  <div style={{ marginTop: 12 }}>
+                    <label className="field-label" htmlFor={`interests-${c.id}`}>
+                      What does {c.name} like? (used to personalise suggestions)
+                    </label>
+                    <input
+                      id={`interests-${c.id}`}
+                      type="text"
+                      className="text-input"
+                      placeholder="e.g. dinosaurs, Lego, football, drawing"
+                      value={c.interests ?? ''}
+                      onChange={(e) => updateInterests(c.id, e.target.value)}
+                      maxLength={120}
+                    />
+                    <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
+                      Separate interests with commas. Keeps it grounded — no personality assumptions.
+                    </div>
+                  </div>
+                ) : c.interests ? (
+                  <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--color-text-muted)', paddingLeft: 52 }}>
+                    🎯 {c.interests}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

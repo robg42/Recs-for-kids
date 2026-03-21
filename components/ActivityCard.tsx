@@ -312,24 +312,75 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                 borderRadius: 12,
                 padding: '12px 14px',
                 marginBottom: 20,
-                display: 'flex',
-                gap: 10,
-                alignItems: 'flex-start',
               }}
             >
-              <span style={{ fontSize: 16, marginTop: 1 }}>📍</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.875rem' }}>
-                  {activity.venue.name}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                  {activity.venue.address}
-                </div>
-                {activity.venue.rating && (
-                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                    ⭐ {activity.venue.rating.toFixed(1)} · {activity.venue.type}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 16, marginTop: 1 }}>📍</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.875rem' }}>
+                    {activity.venue.name}
                   </div>
-                )}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                    {activity.venue.address}
+                  </div>
+                  {/* Rating & price */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                    {activity.venue.rating && (
+                      <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                        ⭐ {activity.venue.rating.toFixed(1)}
+                      </span>
+                    )}
+                    {activity.venue.priceLevel && activity.venue.priceLevel !== 'PRICE_LEVEL_UNSPECIFIED' && (
+                      <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                        {activity.venue.priceLevel === 'PRICE_LEVEL_FREE' ? 'Free entry' :
+                         activity.venue.priceLevel === 'PRICE_LEVEL_INEXPENSIVE' ? '£ Budget-friendly' :
+                         activity.venue.priceLevel === 'PRICE_LEVEL_MODERATE' ? '££ Moderate' :
+                         activity.venue.priceLevel === 'PRICE_LEVEL_EXPENSIVE' ? '£££ Pricey' : ''}
+                      </span>
+                    )}
+                    {!activity.venue.openNow && (
+                      <span style={{ fontSize: '0.78rem', color: '#DC2626', fontWeight: 600 }}>
+                        May be closed now
+                      </span>
+                    )}
+                  </div>
+                  {/* Today's hours */}
+                  {activity.venue.openingHours && activity.venue.openingHours.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                        Opening hours
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {activity.venue.openingHours.map((h, i) => (
+                          <div key={i} style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{h}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Website & phone */}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                    {activity.venue.website && (
+                      <a
+                        href={activity.venue.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
+                      >
+                        🌐 Website
+                      </a>
+                    )}
+                    {activity.venue.phoneNumber && (
+                      <a
+                        href={`tel:${activity.venue.phoneNumber}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
+                      >
+                        📞 {activity.venue.phoneNumber}
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
