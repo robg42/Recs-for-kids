@@ -19,8 +19,9 @@ export async function initSchema(): Promise<void> {
   `);
 
   // Migrate existing databases that predate these columns
-  await db.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS children_json TEXT`);
-  await db.execute(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin INTEGER NOT NULL DEFAULT 0`);
+  // libsql does not support ADD COLUMN IF NOT EXISTS — use try/catch instead
+  try { await db.execute(`ALTER TABLE users ADD COLUMN children_json TEXT`); } catch { /* already exists */ }
+  try { await db.execute(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`); } catch { /* already exists */ }
 
   // Admin sessions — DB-backed so they are revocable
   await db.execute(`

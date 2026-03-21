@@ -28,24 +28,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
     }
 
-    console.log('[auth/request] step: initSchema');
     await initSchema();
 
-    console.log('[auth/request] step: isUserAllowed');
     // Always return success to prevent email enumeration
     const userAllowed = await isUserAllowed(email);
     if (userAllowed) {
-      console.log('[auth/request] step: createMagicToken');
       const token = await createMagicToken(email);
-      console.log('[auth/request] step: sendMagicLink');
       await sendMagicLink(email, token);
     }
 
-    console.log('[auth/request] step: success');
     return NextResponse.json({ success: true });
   } catch (err) {
-    const msg = (err as Error)?.message ?? String(err);
-    console.error('[auth/request] CRASH:', msg, err);
-    return NextResponse.json({ error: 'Something went wrong. Please try again.', _debug: msg }, { status: 500 });
+    console.error('[auth/request] Unexpected error:', err);
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
   }
 }
