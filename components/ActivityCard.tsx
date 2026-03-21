@@ -11,15 +11,15 @@ interface Props {
 }
 
 const ENERGY_COLOUR: Record<string, string> = {
-  low: '#16A34A',
-  medium: '#2563EB',
-  high: '#F97316',
+  low: '#3A5C45',
+  medium: '#2D4A6B',
+  high: '#7A4A30',
 };
 
 const ENERGY_BG: Record<string, string> = {
-  low: '#DCFCE7',
-  medium: '#EFF6FF',
-  high: '#FFF1E6',
+  low: '#E8F0EC',
+  medium: '#E8EFF7',
+  high: '#F0E8E0',
 };
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -32,15 +32,15 @@ const CATEGORY_EMOJI: Record<string, string> = {
   local_event: '🎡',
 };
 
-// Category gradient for photo-less hero
+// Category gradient for photo-less hero — earthy, muted palette
 const CATEGORY_GRADIENT: Record<string, string> = {
-  playground_adventure: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
-  museum_mission:       'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
-  soft_play:            'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
-  cheap_cinema:         'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-  nature_walk:          'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-  at_home_creative:     'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
-  local_event:          'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+  playground_adventure: 'linear-gradient(135deg, #3A5C45 0%, #2A4232 100%)',
+  museum_mission:       'linear-gradient(135deg, #3A3550 0%, #252338 100%)',
+  soft_play:            'linear-gradient(135deg, #7A4A5C 0%, #5A3245 100%)',
+  cheap_cinema:         'linear-gradient(135deg, #6B4A28 0%, #4A3018 100%)',
+  nature_walk:          'linear-gradient(135deg, #2E5040 0%, #1E3828 100%)',
+  at_home_creative:     'linear-gradient(135deg, #7A4A30 0%, #583220 100%)',
+  local_event:          'linear-gradient(135deg, #2D4A6B 0%, #1E3250 100%)',
 };
 
 export default function ActivityCard({ activity, onAccept, onReject, index }: Props) {
@@ -104,7 +104,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                   textShadow: '0 1px 4px rgba(0,0,0,0.4)',
                 }}
               >
-                {activity.title}
+                {activity.title}{activity.venue ? ` (${activity.venue.name})` : ''}
               </h3>
             </div>
           </div>
@@ -124,7 +124,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
             </div>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.5) 100%)', display: 'flex', alignItems: 'flex-end', padding: '14px 16px' }}>
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, margin: 0, color: '#fff', lineHeight: 1.2, textShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
-                {activity.title}
+                {activity.title}{activity.venue ? ` (${activity.venue.name})` : ''}
               </h3>
             </div>
           </div>
@@ -142,13 +142,15 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
         >
           <span
             style={{
-              background: '#BBF7D0',
-              color: '#166534',
-              fontSize: '0.72rem',
+              background: 'var(--color-brand-light)',
+              color: 'var(--color-brand)',
+              fontSize: '0.68rem',
               fontWeight: 700,
               padding: '3px 10px',
-              borderRadius: 4,
+              borderRadius: 3,
               fontFamily: 'var(--font-display)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
             }}
           >
             {costLabel}
@@ -171,29 +173,31 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
           {activity.venue?.rating && (
             <span
               style={{
-                background: '#FEF9C3',
-                color: '#854D0E',
-                fontSize: '0.72rem',
+                background: 'var(--color-amber-light)',
+                color: 'var(--color-amber)',
+                fontSize: '0.68rem',
                 fontWeight: 700,
                 padding: '3px 10px',
-                borderRadius: 4,
+                borderRadius: 3,
                 fontFamily: 'var(--font-display)',
+                letterSpacing: '0.04em',
               }}
             >
-              ⭐ {activity.venue.rating.toFixed(1)}
+              {activity.venue.rating.toFixed(1)}
             </span>
           )}
 
           {activity.venue?.openNow === false && (
             <span
               style={{
-                background: '#FEE2E2',
-                color: '#991B1B',
-                fontSize: '0.72rem',
+                background: 'var(--color-rose-light)',
+                color: 'var(--color-rose)',
+                fontSize: '0.68rem',
                 fontWeight: 700,
                 padding: '3px 10px',
-                borderRadius: 4,
+                borderRadius: 3,
                 fontFamily: 'var(--font-display)',
+                letterSpacing: '0.04em',
               }}
             >
               May be closed
@@ -283,7 +287,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                   background: 'var(--color-bg)',
                   borderRadius: 6,
                   padding: '10px 14px',
-                  borderLeft: '3px solid var(--color-orange)',
+                  borderLeft: '2px solid var(--color-brand)',
                 }}
               >
                 <span
@@ -291,7 +295,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                     fontFamily: 'var(--font-display)',
                     fontWeight: 700,
                     fontSize: '0.82rem',
-                    color: 'var(--color-orange-dark)',
+                    color: 'var(--color-brand)',
                   }}
                 >
                   {w.name}, {w.age}
@@ -347,7 +351,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                       </span>
                     )}
                     {!activity.venue.openNow && (
-                      <span style={{ fontSize: '0.78rem', color: '#DC2626', fontWeight: 600 }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--color-rose)', fontWeight: 600 }}>
                         May be closed now
                       </span>
                     )}
@@ -373,7 +377,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
+                        style={{ fontSize: '0.78rem', color: 'var(--color-terracotta)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
                       >
                         🌐 Website
                       </a>
@@ -382,7 +386,7 @@ export default function ActivityCard({ activity, onAccept, onReject, index }: Pr
                       <a
                         href={`tel:${activity.venue.phoneNumber}`}
                         onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: '0.78rem', color: 'var(--color-orange)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
+                        style={{ fontSize: '0.78rem', color: 'var(--color-terracotta)', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
                       >
                         📞 {activity.venue.phoneNumber}
                       </a>

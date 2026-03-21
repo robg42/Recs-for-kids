@@ -78,16 +78,22 @@ export async function getSession(): Promise<{ email: string } | null> {
     const { payload } = await jwtVerify(token, getSecret());
     if (payload.type !== 'session' || typeof payload.email !== 'string') return null;
 
-    // Check if session was issued before the global invalidation timestamp
-    const db = getDb();
-    const row = await db.execute({
-      sql: "SELECT value FROM settings WHERE key = 'sessions_nbf' LIMIT 1",
-      args: [],
-    });
-    if (row.rows.length > 0) {
-      const nbf = new Date(row.rows[0].value as string).getTime();
-      const iat = (payload.iat ?? 0) * 1000;
-      if (iat < nbf) return null; // Issued before kill-all — treat as expired
+    // Check if session was issued before the global invalidation timestamp.
+    // Wrapped in its own try-catch: if the settings table doesn't exist yet
+    // (before initSchema() has run), we allow the session rather than failing.
+    try {
+      const db = getDb();
+      const row = await db.execute({
+        sql: "SELECT value FROM settings WHERE key = 'sessions_nbf' LIMIT 1",
+        args: [],
+      });
+      if (row.rows.length > 0) {
+        const nbf = new Date(row.rows[0].value as string).getTime();
+        const iat = (payload.iat ?? 0) * 1000;
+        if (iat < nbf) return null; // Issued before kill-all — treat as expired
+      }
+    } catch {
+      // Settings table not yet created — allow session
     }
 
     return { email: payload.email };

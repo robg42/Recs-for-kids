@@ -42,24 +42,28 @@ function LoginForm() {
 
   if (status === 'sent') {
     return (
-      <div className="card animate-fade-in" style={{ padding: '32px 28px', textAlign: 'center' }}>
+      <div
+        className="animate-fade-in"
+        style={{ padding: '32px 28px', textAlign: 'center', background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+      >
         <div
           style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'var(--color-green-light)',
+            width: 48, height: 48,
+            background: 'var(--color-brand-light)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 20px',
           }}
         >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
           </svg>
         </div>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, marginBottom: 8 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, marginBottom: 8, letterSpacing: '-0.01em' }}>
           Check your inbox
         </h2>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          We sent a sign-in link to <strong>{email}</strong>. It expires in 15 minutes.
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', lineHeight: 1.6 }}>
+          Sign-in link sent to <strong style={{ color: 'var(--color-text)' }}>{email}</strong>.<br />
+          It expires in 15 minutes.
         </p>
         <button className="btn-ghost" style={{ marginTop: 24 }} onClick={() => { setStatus('idle'); setEmail(''); }}>
           Try a different email
@@ -69,7 +73,11 @@ function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card animate-fade-in" style={{ padding: '28px 24px' }}>
+    <form
+      onSubmit={handleSubmit}
+      className="animate-fade-in"
+      style={{ padding: '28px 24px', background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}
+    >
       <label className="field-label" htmlFor="email">Email address</label>
       <input
         id="email"
@@ -88,7 +96,7 @@ function LoginForm() {
       )}
       <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={status === 'loading' || !email}>
         {status === 'loading'
-          ? <><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Sending…</>
+          ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Sending</>
           : 'Send sign-in link'}
       </button>
     </form>
@@ -98,11 +106,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
-      {/* Hero */}
+      {/* Hero — deep forest */}
       <div
         style={{
-          background: 'linear-gradient(150deg, #FF7A28 0%, #F97316 55%, #F4600E 100%)',
-          padding: '64px 24px 88px',
+          background: 'linear-gradient(160deg, #1E2D26 0%, #2A3F35 60%, #1A2820 100%)',
+          padding: '72px 24px 96px',
           textAlign: 'center',
         }}
       >
@@ -111,32 +119,53 @@ export default function LoginPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 64, height: 64,
-            background: 'rgba(255,255,255,0.2)',
-            borderRadius: 18,
-            marginBottom: 20,
-            backdropFilter: 'blur(8px)',
+            width: 56, height: 56,
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            marginBottom: 24,
           }}
         >
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="3 11 22 2 13 21 11 13 3 11"/>
           </svg>
         </div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: '#fff', margin: '0 0 8px', letterSpacing: '-0.01em' }}>
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.9rem',
+            fontWeight: 800,
+            color: '#F5F0E8',
+            margin: '0 0 10px',
+            letterSpacing: '-0.02em',
+          }}
+        >
           Family Adventures
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1rem', margin: 0, fontWeight: 500 }}>
-          Activity ideas for parents &amp; kids
+        <p style={{ color: 'rgba(245,240,232,0.55)', fontSize: '0.875rem', margin: 0, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Invite only
         </p>
       </div>
 
-      {/* Form */}
-      <div style={{ flex: 1, padding: '0 20px 40px', marginTop: -36, maxWidth: 440, width: '100%', margin: '-36px auto 0' }}>
-        <Suspense fallback={<div className="card" style={{ padding: 32, textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>}>
+      {/* Form — floats over hero */}
+      <div
+        style={{
+          flex: 1,
+          padding: '0 20px 48px',
+          marginTop: -40,
+          maxWidth: 420,
+          width: '100%',
+          margin: '-40px auto 0',
+        }}
+      >
+        <Suspense fallback={
+          <div style={{ padding: 32, textAlign: 'center', background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+            <div className="spinner" style={{ margin: '0 auto' }} />
+          </div>
+        }>
           <LoginForm />
         </Suspense>
-        <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-text-faint)', marginTop: 20 }}>
-          Invite only · No password · Magic link sent to your email
+        <p style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--color-text-faint)', marginTop: 20, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          No password · Magic link sent to your email
         </p>
       </div>
     </div>
