@@ -19,23 +19,25 @@ export async function GET(req: NextRequest) {
 
   try {
     // skipHttpRedirect=true returns JSON { photoUri } instead of a redirect
-    const metaRes = await fetch(
-      `https://places.googleapis.com/v1/${name}/media?key=${apiKey}&maxWidthPx=800&skipHttpRedirect=true`,
-      { next: { revalidate: 86400 } }
-    );
+    const metaUrl = `https://places.googleapis.com/v1/${name}/media?key=${apiKey}&maxWidthPx=800&skipHttpRedirect=true`;
+    const metaRes = await fetch(metaUrl, { next: { revalidate: 86400 } });
 
     if (!metaRes.ok) {
+      const errBody = await metaRes.text();
+      console.error(`[photo] Places media API error ${metaRes.status} for ${name}: ${errBody}`);
       return new NextResponse('Photo not found', { status: 404 });
     }
 
     const meta = (await metaRes.json()) as { photoUri?: string };
     if (!meta.photoUri) {
+      console.warn(`[photo] No photoUri in response for ${name}`);
       return new NextResponse('No photo URI', { status: 404 });
     }
 
     // Proxy the image bytes so img-src 'self' in CSP stays clean
     const imgRes = await fetch(meta.photoUri);
     if (!imgRes.ok) {
+      console.error(`[photo] CDN image fetch failed ${imgRes.status} for ${name}`);
       return new NextResponse('Image fetch failed', { status: 502 });
     }
 
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[photo] Error fetching photo:', err);
+    console.error(`[photo] Unexpected error for ${name}:`, err);
     return new NextResponse('Server error', { status: 500 });
   }
 }

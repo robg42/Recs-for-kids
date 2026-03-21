@@ -58,11 +58,12 @@ export async function getNearbyVenues(
 ): Promise<Venue[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
-    console.warn('[places] No API key set — returning empty venues');
+    console.error('[places] GOOGLE_PLACES_API_KEY is not set — cannot fetch venues');
     return [];
   }
 
   const includedTypes = getIncludedTypes(indoorOutdoor, energyLevel);
+  console.log(`[places] Searching lat=${lat} lon=${lon} radius=${radius}m types=${includedTypes.join(',')}`);
 
   const body = {
     includedTypes,
@@ -88,14 +89,15 @@ export async function getNearbyVenues(
     });
 
     if (!res.ok) {
-      console.error('[places] API error:', res.status, await res.text());
+      const errBody = await res.text();
+      console.error(`[places] API error ${res.status}: ${errBody}`);
       return [];
     }
 
     const data = (await res.json()) as PlacesApiResponse;
     const places = data.places ?? [];
 
-    return places
+    const venues = places
       .filter((p): p is PlacesApiPlace & { id: string; displayName: { text: string } } =>
         Boolean(p.id && p.displayName?.text)
       )
@@ -108,6 +110,9 @@ export async function getNearbyVenues(
         type: p.primaryTypeDisplayName?.text ?? p.primaryType ?? 'venue',
         photoName: p.photos?.[0]?.name,
       }));
+
+    console.log(`[places] Found ${venues.length} venues (${venues.filter(v => v.photoName).length} with photos)`);
+    return venues;
   } catch (err) {
     console.error('[places] Fetch error:', err);
     return [];

@@ -101,10 +101,16 @@ export async function POST(req: NextRequest) {
   try {
     const radius = TRANSPORT_RADIUS[filters.transport] ?? TRANSPORT_RADIUS.car;
 
+    console.log(`[api/activities] user=${session.email} coords=${coords.lat},${coords.lon} transport=${filters.transport} indoor=${filters.indoorOutdoor} energy=${filters.energyLevel}`);
+
     const [weather, venues] = await Promise.all([
       getWeather(coords.lat, coords.lon),
       getNearbyVenues(coords.lat, coords.lon, radius, filters.indoorOutdoor, filters.energyLevel),
     ]);
+
+    if (venues.length === 0) {
+      console.warn('[api/activities] No venues returned — activities will be generated without real locations');
+    }
 
     const activities = await generateActivities(
       filters,
@@ -115,9 +121,10 @@ export async function POST(req: NextRequest) {
       categoryWeights
     );
 
+    console.log(`[api/activities] Generated ${activities.length} activities for ${session.email}`);
     return NextResponse.json<GenerateActivitiesResponse>({ activities, weather });
   } catch (err) {
-    console.error('[api/activities] Error:', err);
+    console.error('[api/activities] Unhandled error:', err);
     return NextResponse.json<GenerateActivitiesResponse>(
       { activities: [], weather: fallbackWeather(), error: 'Something went wrong' },
       { status: 500 }
