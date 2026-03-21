@@ -120,6 +120,7 @@ export default function InputForm({ onSubmit, loading, initialFilters, onFilters
             [
               { value: 'car', label: 'Have a car', emoji: '🚗' },
               { value: 'public', label: 'Public transport', emoji: '🚌' },
+              { value: 'walking', label: 'Walking only', emoji: '🚶' },
             ] as { value: Transport; label: string; emoji: string }[]
           ).map((o) => (
             <button

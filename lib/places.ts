@@ -3,9 +3,10 @@ import type { Venue, IndoorOutdoor, EnergyLevel } from '@/types';
 const PLACES_API_BASE = 'https://places.googleapis.com/v1/places:searchNearby';
 
 // Radius in metres based on transport mode
-export const TRANSPORT_RADIUS: Record<'car' | 'public', number> = {
-  car: 15000,   // ~15km
-  public: 3000, // ~3km
+export const TRANSPORT_RADIUS: Record<'car' | 'public' | 'walking', number> = {
+  car: 15000,     // ~15km
+  public: 3000,   // ~3km
+  walking: 1500,  // ~1.5km
 };
 
 // Which Google Places types to query based on indoor/outdoor preference

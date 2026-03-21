@@ -97,7 +97,7 @@ TODAY'S CONDITIONS:
 - Time available: ${timeLabel[filters.timeAvailable] ?? filters.timeAvailable}
 - Preference: ${filters.indoorOutdoor}
 - Energy level: ${filters.energyLevel}
-- Transport: ${filters.transport === 'car' ? 'has a car' : 'public transport only'}
+- Transport: ${filters.transport === 'car' ? 'has a car' : filters.transport === 'walking' ? 'walking only (1.5km radius max)' : 'public transport only'}
 - Budget: £${filters.budgetPerChild} per child maximum${avoidNote}
 
 REAL NEARBY VENUES (use these — they are confirmed open and nearby):

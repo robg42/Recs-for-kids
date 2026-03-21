@@ -262,12 +262,12 @@ export default function DiscoverPage() {
   const timeLabels: Record<TimeAvailable, string> = { '1-2h': '1–2 hrs', 'half-day': 'Half day', 'full-day': 'Full day' };
   const ioLabels: Record<IndoorOutdoor, string> = { indoor: 'Indoor', either: 'Either', outdoor: 'Outdoor' };
   const energyLabels: Record<EnergyLevel, string> = { low: 'Relaxed', medium: 'Active', high: 'Wild' };
-  const transportLabels: Record<Transport, string> = { car: 'Car', public: 'Bus' };
+  const transportLabels: Record<Transport, string> = { car: 'Car', public: 'Bus', walking: 'Walking' };
 
   const timeOptions: TimeAvailable[] = ['1-2h', 'half-day', 'full-day'];
   const ioOptions: IndoorOutdoor[] = ['indoor', 'either', 'outdoor'];
   const energyOptions: EnergyLevel[] = ['low', 'medium', 'high'];
-  const transportOptions: Transport[] = ['car', 'public'];
+  const transportOptions: Transport[] = ['car', 'public', 'walking'];
 
   function cycleOption<T>(current: T, options: T[], key: keyof ActivityFilters) {
     const next = options[(options.indexOf(current) + 1) % options.length];

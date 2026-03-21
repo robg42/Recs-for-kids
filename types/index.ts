@@ -1,7 +1,7 @@
 export type TimeAvailable = '1-2h' | 'half-day' | 'full-day';
 export type IndoorOutdoor = 'indoor' | 'outdoor' | 'either';
 export type EnergyLevel = 'low' | 'medium' | 'high';
-export type Transport = 'car' | 'public';
+export type Transport = 'car' | 'public' | 'walking';
 export type ActivityCategory =
   | 'playground_adventure'
   | 'museum_mission'
