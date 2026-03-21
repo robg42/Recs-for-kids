@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+// Separated so useSearchParams() can be wrapped in Suspense (Next.js 15+ requirement)
+function LoginForm() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const [email, setEmail] = useState('');
@@ -48,6 +49,71 @@ export default function LoginPage() {
     }
   }
 
+  if (status === 'sent') {
+    return (
+      <div className="card animate-fade-in" style={{ padding: '32px 24px', textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }}>📬</div>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: 8 }}>
+          Check your inbox
+        </h2>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+          If your email is on the list, we&apos;ve sent you a sign-in link. It expires in 15 minutes.
+        </p>
+        <button
+          className="btn-ghost"
+          style={{ marginTop: 24 }}
+          onClick={() => { setStatus('idle'); setEmail(''); }}
+        >
+          Try a different email
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="card" style={{ padding: '32px 24px' }}>
+      <label className="field-label" htmlFor="email" style={{ textAlign: 'left', display: 'block' }}>
+        Email address
+      </label>
+      <input
+        id="email"
+        type="email"
+        required
+        autoComplete="email"
+        className="text-input"
+        style={{ marginBottom: 16 }}
+        placeholder="you@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        disabled={status === 'loading'}
+      />
+
+      {(status === 'error' || message) && (
+        <p style={{ color: '#DC2626', fontSize: '0.875rem', marginBottom: 16, textAlign: 'left' }}>
+          {message}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        className="btn-primary"
+        style={{ width: '100%' }}
+        disabled={status === 'loading' || !email}
+      >
+        {status === 'loading' ? (
+          <>
+            <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+            Sending link…
+          </>
+        ) : (
+          'Send magic link →'
+        )}
+      </button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div
       style={{
@@ -77,84 +143,9 @@ export default function LoginPage() {
           Fun activity ideas for parents &amp; kids
         </p>
 
-        {status === 'sent' ? (
-          <div
-            className="card animate-fade-in"
-            style={{ padding: '32px 24px', textAlign: 'center' }}
-          >
-            <div style={{ fontSize: 40, marginBottom: 16 }}>📬</div>
-            <h2
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '1.25rem',
-                marginBottom: 8,
-              }}
-            >
-              Check your inbox
-            </h2>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-              If your email is on the list, we&apos;ve sent you a sign-in link. It expires in 15
-              minutes.
-            </p>
-            <button
-              className="btn-ghost"
-              style={{ marginTop: 24 }}
-              onClick={() => {
-                setStatus('idle');
-                setEmail('');
-              }}
-            >
-              Try a different email
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="card" style={{ padding: '32px 24px' }}>
-            <label className="field-label" htmlFor="email" style={{ textAlign: 'left', display: 'block' }}>
-              Email address
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="text-input"
-              style={{ marginBottom: 16 }}
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={status === 'loading'}
-            />
-
-            {(status === 'error' || message) && (
-              <p
-                style={{
-                  color: '#DC2626',
-                  fontSize: '0.875rem',
-                  marginBottom: 16,
-                  textAlign: 'left',
-                }}
-              >
-                {message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ width: '100%' }}
-              disabled={status === 'loading' || !email}
-            >
-              {status === 'loading' ? (
-                <>
-                  <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-                  Sending link…
-                </>
-              ) : (
-                'Send magic link →'
-              )}
-            </button>
-          </form>
-        )}
+        <Suspense fallback={<div className="spinner" style={{ margin: '0 auto' }} />}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );
