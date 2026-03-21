@@ -114,7 +114,11 @@ RULES:
 - ${weather.isRaining ? 'It is raining — strongly favour indoor activities or rain-proof plans' : ''}
 - Titles should be imaginative (e.g. "Dinosaur Detective Mission" not "Museum Visit")
 - Plans should have 3–5 clear, fun steps
-- Explain why each activity works specifically for each child by name and age
+- Explain why each activity works for each child using ONLY their age and developmental stage.
+  Do NOT invent personality traits, interests, or character assumptions.
+  Good: "At 7, children enjoy rule-based challenges and feel proud completing tasks independently."
+  Bad: "Chazzy loves detective activities and has strong focus."
+  Stick to facts about typical child development at that age.
 - Vary the activities: different energy levels, different types
 
 RESPONSE FORMAT:
