@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import DiscoverV2 from '@/components/DiscoverV2';
 import Navigation from '@/components/Navigation';
 import ActivityCard from '@/components/ActivityCard';
 import WeatherBadge from '@/components/WeatherBadge';
@@ -53,6 +54,30 @@ function minutesAgo(ms: number) {
 }
 
 export default function DiscoverPage() {
+  // ── Version switcher ─────────────────────────────────────────────────────
+  // Default to V2 (new design). Client reads localStorage after hydration.
+  const [uiVersion, setUiVersion] = useState<'v1' | 'v2'>('v2');
+  useEffect(() => {
+    const stored = localStorage.getItem('rfk-ui-version') as 'v1' | 'v2' | null;
+    setUiVersion(stored ?? 'v2');
+  }, []);
+
+  if (uiVersion === 'v2') {
+    return (
+      <DiscoverV2
+        onSwitchVersion={() => {
+          localStorage.setItem('rfk-ui-version', 'v1');
+          setUiVersion('v1');
+        }}
+      />
+    );
+  }
+
+  // ── Classic (V1) ─────────────────────────────────────────────────────────
+  return <DiscoverV1 onSwitchToNew={() => { localStorage.setItem('rfk-ui-version', 'v2'); setUiVersion('v2'); }} />;
+}
+
+function DiscoverV1({ onSwitchToNew }: { onSwitchToNew: () => void }) {
   const router = useRouter();
   const { prefs, accept, reject, hasChildren, initialized: prefsReady } = usePreferences();
 
@@ -548,6 +573,21 @@ export default function DiscoverPage() {
             {pullY >= 50 ? 'Release for next picks' : 'Pull for next picks'}
           </div>
         )}
+
+        {/* ── New design prompt ── */}
+        <button
+          onClick={onSwitchToNew}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            width: '100%', background: 'var(--color-brand)', color: '#fff',
+            border: 'none', borderRadius: 6, padding: '9px 14px', marginBottom: 14,
+            cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.78rem',
+            letterSpacing: '0.02em',
+          }}
+        >
+          <span>✦ New design available</span>
+          <span style={{ opacity: 0.8, textDecoration: 'underline' }}>Try it →</span>
+        </button>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
