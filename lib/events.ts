@@ -153,12 +153,15 @@ export function extractExplicitDate(text: string, window: DateWindow): Date | nu
   };
 
   // Pattern A: "21 march", "21st march", "21–23 march 2026"
-  // Captures the start day of a range as well as single days.
+  // Captures start AND end day of a range so both are checked against the window.
   const reA =
-    /\b(\d{1,2})(?:st|nd|rd|th)?(?:\s*[–\-]\s*\d{1,2}(?:st|nd|rd|th)?)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+(\d{4}))?/g;
+    /\b(\d{1,2})(?:st|nd|rd|th)?(?:\s*[–\-]\s*(\d{1,2})(?:st|nd|rd|th)?)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+(\d{4}))?/g;
   let m: RegExpExecArray | null;
   while ((m = reA.exec(lower)) !== null) {
-    tryAdd(parseInt(m[1], 10), MONTH_MAP[m[2]], m[3] ? parseInt(m[3], 10) : defaultYear);
+    const mo = MONTH_MAP[m[3]];
+    const yr = m[4] ? parseInt(m[4], 10) : defaultYear;
+    tryAdd(parseInt(m[1], 10), mo, yr);
+    if (m[2]) tryAdd(parseInt(m[2], 10), mo, yr); // end of range
   }
 
   // Pattern B: "march 21", "march 21st", "march 21–23 2026"
@@ -359,13 +362,18 @@ async function fetchSerperEvents(
 
     for (const r of results) {
       if (!r.title) continue;
-      const cleanTitle = r.title.replace(/\s*[|\-–].*$/, '').trim();
-      const searchText = `${cleanTitle} ${r.snippet ?? ''}`;
+      // Use the FULL title + snippet for date extraction — the clean title
+      // strips after dashes/pipes which often removes the date portion
+      // (e.g. "Things To Do: 21-22 March" → "Things To Do: 21").
+      const searchText = `${r.title} ${r.snippet ?? ''}`;
 
       // HARD FILTER — explicit date in current window required.
       // No publish-date ("r.date") inference.  No relative-term fallback.
       const extracted = extractExplicitDate(searchText, window);
       if (!extracted) continue;
+
+      // Clean title for display only (after date extraction)
+      const cleanTitle = r.title.replace(/\s*[|\-–].*$/, '').trim();
 
       events.push({
         title: cleanTitle,
