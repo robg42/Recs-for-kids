@@ -21,18 +21,27 @@ const ALLOWED_IMAGE_CONTENT_TYPES = new Set([
 
 async function handlePlacesPhoto(name: string): Promise<NextResponse> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) return new NextResponse('Not configured', { status: 503 });
+  if (!apiKey) {
+    console.error('[photo] GOOGLE_PLACES_API_KEY not set');
+    return new NextResponse('Not configured', { status: 503 });
+  }
 
+  console.log(`[photo] Fetching Places photo: ${name}`);
   const metaUrl = `https://places.googleapis.com/v1/${name}/media?key=${apiKey}&maxWidthPx=800&skipHttpRedirect=true`;
   const metaRes = await fetch(metaUrl, { next: { revalidate: 86400 } });
 
   if (!metaRes.ok) {
-    console.error(`[photo] Places API ${metaRes.status} for ${name}`);
+    const body = await metaRes.text().catch(() => '');
+    console.error(`[photo] Places API ${metaRes.status} for ${name}: ${body.slice(0, 300)}`);
     return new NextResponse('Photo not found', { status: 404 });
   }
 
   const meta = (await metaRes.json()) as { photoUri?: string };
-  if (!meta.photoUri) return new NextResponse('No photo URI', { status: 404 });
+  if (!meta.photoUri) {
+    console.error(`[photo] No photoUri in metadata for ${name}`, JSON.stringify(meta).slice(0, 300));
+    return new NextResponse('No photo URI', { status: 404 });
+  }
+  console.log(`[photo] Got photoUri for ${name}: ${meta.photoUri.slice(0, 100)}...`);
 
   const imgRes = await fetch(meta.photoUri);
   if (!imgRes.ok) return new NextResponse('Image fetch failed', { status: 502 });
@@ -106,14 +115,19 @@ export async function GET(req: NextRequest) {
 
   try {
     if (name) {
-      if (!VALID_PHOTO_NAME.test(name)) return new NextResponse('Bad request', { status: 400 });
+      if (!VALID_PHOTO_NAME.test(name)) {
+        console.warn(`[photo] Rejected invalid photo name: ${name.slice(0, 100)}`);
+        return new NextResponse('Bad request', { status: 400 });
+      }
       return await handlePlacesPhoto(name);
     }
 
     if (externalUrl) {
+      console.log(`[photo] Proxying external image: ${externalUrl.slice(0, 100)}`);
       return await handleExternalImage(externalUrl);
     }
 
+    console.warn('[photo] Request missing both name and url params');
     return new NextResponse('Missing name or url', { status: 400 });
   } catch (err) {
     console.error('[photo] Unexpected error:', err);

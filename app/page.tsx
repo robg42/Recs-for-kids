@@ -68,8 +68,16 @@ export default function DiscoverPage() {
     setUiVersion(v);
   }
 
-  // Render nothing until localStorage has been read — prevents hydration mismatch
-  if (uiVersion === null) return null;
+  // Show a minimal shell matching V3's background while localStorage is read.
+  // This prevents a visible flash (blank → V3) that the old `return null` caused.
+  if (uiVersion === null) {
+    return (
+      <div style={{
+        minHeight: '100dvh',
+        background: '#f8f8f8',
+      }} />
+    );
+  }
 
   if (uiVersion === 'v3') {
     return <DiscoverV3 onSwitchVersion={() => switchTo('v1')} />;
@@ -547,6 +555,7 @@ function DiscoverV1({ onSwitchToNew }: { onSwitchToNew: () => void }) {
           minHeight: '100dvh',
           overflowY: 'auto',
           position: 'relative',
+          background: '#F0EBE0', // V1 parchment bg (body is now neutral for V3)
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

@@ -28,8 +28,8 @@
   --color-amber:         #6B4A28;
   --color-amber-light:   #F5ECD8;
 
-  /* Surface — warm parchment */
-  --color-bg:            #F0EBE0;
+  /* Surface — neutral base (V3 default); V1 overrides with parchment inline */
+  --color-bg:            #f8f8f8;
   --color-bg-card:       #FDFAF4;
   --color-border:        #D8D0C2;
   --color-border-subtle: #E8E2D8;

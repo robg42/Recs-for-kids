@@ -248,6 +248,11 @@ function validateActivity(
       const original =
         originalVenues.find((ov) => ov.placeId === placeId) ??
         originalVenues.find((ov) => ov.name.toLowerCase() === (v.name as string).toLowerCase());
+      if (!original) {
+        console.log(`[anthropic] VENUE NOT MATCHED: Claude said "${v.name}" (placeId="${placeId}"), ${originalVenues.length} originals available: [${originalVenues.map(ov => ov.name).join(', ')}]`);
+      } else {
+        console.log(`[anthropic] Venue matched: "${v.name}" → "${original.name}" (photo: ${original.photoName ? 'YES' : 'NO'})`);
+      }
       venue = {
         placeId,
         name: (v.name as string).slice(0, 100),

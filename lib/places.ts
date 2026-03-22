@@ -161,7 +161,14 @@ async function fetchFromApi(lat: number, lon: number, radius: number): Promise<V
       priceLevel: p.priceLevel,
     }));
 
-  console.log(`[places] API returned ${venues.length} venues`);
+  const withPhotos = venues.filter(v => v.photoName);
+  console.log(`[places] API returned ${venues.length} venues, ${withPhotos.length} have photos`);
+  if (withPhotos.length > 0) {
+    console.log(`[places] Sample photo name: ${withPhotos[0].photoName}`);
+  } else {
+    console.log(`[places] WARNING: Zero venues have photos. Raw API photos data:`,
+      (data.places ?? []).slice(0, 3).map(p => ({ name: p.displayName?.text, photos: p.photos })));
+  }
   return venues;
 }
 
