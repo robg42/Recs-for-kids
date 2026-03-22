@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import DiscoverV3 from '@/components/DiscoverV3';
+import Discover from '@/components/Discover';
 import Navigation from '@/components/Navigation';
 import ActivityCard from '@/components/ActivityCard';
 import WeatherBadge from '@/components/WeatherBadge';
@@ -54,40 +54,29 @@ function minutesAgo(ms: number) {
 }
 
 export default function DiscoverPage() {
-  // ── Version switcher ─────────────────────────────────────────────────────
-  // null = not yet read (server + first paint); avoids hydration mismatch.
-  const [uiVersion, setUiVersion] = useState<'v1' | 'v3' | null>(null);
+  // Check for legacy mode via query param — ?legacy=1 opens the classic V1
+  const [isLegacy, setIsLegacy] = useState(false);
+  const [checked, setChecked] = useState(false);
+
   useEffect(() => {
-    const stored = localStorage.getItem('rfk-ui-version');
-    // Default to v3. Treat any non-'v1' value (including old 'v2') as v3.
-    setUiVersion(stored === 'v1' ? 'v1' : 'v3');
+    const params = new URLSearchParams(window.location.search);
+    setIsLegacy(params.get('legacy') === '1');
+    setChecked(true);
   }, []);
 
-  function switchTo(v: 'v1' | 'v3') {
-    localStorage.setItem('rfk-ui-version', v);
-    setUiVersion(v);
+  if (!checked) {
+    // Render matching background immediately — no flash
+    return <div style={{ minHeight: '100dvh', background: '#fafafa' }} />;
   }
 
-  // Show a minimal shell matching V3's background while localStorage is read.
-  // This prevents a visible flash (blank → V3) that the old `return null` caused.
-  if (uiVersion === null) {
-    return (
-      <div style={{
-        minHeight: '100dvh',
-        background: '#f8f8f8',
-      }} />
-    );
+  if (!isLegacy) {
+    return <Discover />;
   }
 
-  if (uiVersion === 'v3') {
-    return <DiscoverV3 onSwitchVersion={() => switchTo('v1')} />;
-  }
-
-  // ── Classic (V1) ─────────────────────────────────────────────────────────
-  return <DiscoverV1 onSwitchToNew={() => switchTo('v3')} />;
+  return <DiscoverV1 />;
 }
 
-function DiscoverV1({ onSwitchToNew }: { onSwitchToNew: () => void }) {
+function DiscoverV1() {
   const router = useRouter();
   const { prefs, accept, reject, hasChildren, initialized: prefsReady } = usePreferences();
 
@@ -585,20 +574,19 @@ function DiscoverV1({ onSwitchToNew }: { onSwitchToNew: () => void }) {
           </div>
         )}
 
-        {/* ── New design prompt ── */}
-        <button
-          onClick={onSwitchToNew}
+        {/* ── Back to new version ── */}
+        <a
+          href="/"
           style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: '100%', background: 'var(--color-brand)', color: '#fff',
             border: 'none', borderRadius: 6, padding: '9px 14px', marginBottom: 14,
-            cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.78rem',
+            textDecoration: 'none', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.78rem',
             letterSpacing: '0.02em',
           }}
         >
-          <span>✦ New design available</span>
-          <span style={{ opacity: 0.8, textDecoration: 'underline' }}>Try it →</span>
-        </button>
+          ← Back to new version
+        </a>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
