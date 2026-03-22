@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { isUserAdmin } from '@/lib/users';
 import { getDb } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   const session = await getSession();
-  if (!session?.isAdmin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+  const admin = await isUserAdmin(session.email);
+  if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const keys = {
     ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
