@@ -248,7 +248,7 @@ async function fetchEventbriteEvents(
   window: DateWindow,
 ): Promise<LocalEvent[]> {
   const apiKey = process.env.EVENTBRITE_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) { console.warn('[events] EVENTBRITE_API_KEY not set — skipping Eventbrite'); return []; }
 
   try {
     const fmt = (ms: number) => new Date(ms).toISOString().split('.')[0] + 'Z';
@@ -304,6 +304,7 @@ async function fetchEventbriteEvents(
       });
     }
 
+    console.log(`[events] Eventbrite: ${(data.events ?? []).length} raw → ${events.length} valid events`);
     return events;
   } catch (err) {
     console.warn('[events] Eventbrite fetch failed (non-fatal):', err);
@@ -331,7 +332,7 @@ async function fetchSerperEvents(
   window: DateWindow,
 ): Promise<LocalEvent[]> {
   const apiKey = process.env.SERPER_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) { console.warn('[events] SERPER_API_KEY not set — skipping Serper'); return []; }
 
   const areaName = await getAreaName(lat, lon).catch(() => 'nearby');
 
@@ -381,6 +382,10 @@ async function fetchSerperEvents(
       });
     }
 
+    console.log(`[events] Serper query="${query}" → ${results.length} raw → ${events.length} with valid dates`);
+    if (events.length === 0 && results.length > 0) {
+      console.log(`[events] Serper titles that failed date extraction: ${results.slice(0, 3).map(r => r.title).join(' | ')}`);
+    }
     return events;
   } catch (err) {
     console.warn('[events] Serper fetch failed (non-fatal):', err);
@@ -421,5 +426,6 @@ export async function fetchLocalEvents(lat: number, lon: number): Promise<LocalE
     if (!seen.has(key)) { seen.add(key); deduped.push(ev); }
   }
 
+  console.log(`[events] Combined: ${eventbriteEvents.length} Eventbrite + ${serperEvents.length} Serper → ${deduped.length} deduped`);
   return deduped.slice(0, 12);
 }

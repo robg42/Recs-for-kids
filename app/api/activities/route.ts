@@ -125,8 +125,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json<GenerateActivitiesResponse>({ activities: poolHit.activities, weather: poolHit.weather });
     }
 
+    console.log(`[api/activities] Data: ${venues.length} venues, ${events.length} events, weather=${weather.temperatureCelsius}°C`);
     if (venues.length === 0) {
       console.warn('[api/activities] No venues returned — activities will be generated without real locations');
+    }
+    if (events.length > 0) {
+      console.log(`[api/activities] Events: ${events.map(e => `"${e.title}" (${e.source})`).join(', ')}`);
     }
 
     const activities = await generateActivities(
