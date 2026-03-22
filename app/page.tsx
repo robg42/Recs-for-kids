@@ -55,12 +55,15 @@ function minutesAgo(ms: number) {
 
 export default function DiscoverPage() {
   // ── Version switcher ─────────────────────────────────────────────────────
-  // Default to V2 (new design). Client reads localStorage after hydration.
-  const [uiVersion, setUiVersion] = useState<'v1' | 'v2'>('v2');
+  // null = not yet read (server + first paint); avoids hydration mismatch.
+  const [uiVersion, setUiVersion] = useState<'v1' | 'v2' | null>(null);
   useEffect(() => {
     const stored = localStorage.getItem('rfk-ui-version') as 'v1' | 'v2' | null;
     setUiVersion(stored ?? 'v2');
   }, []);
+
+  // Render nothing until localStorage has been read — prevents hydration mismatch
+  if (uiVersion === null) return null;
 
   if (uiVersion === 'v2') {
     return (

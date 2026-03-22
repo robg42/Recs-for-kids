@@ -87,128 +87,133 @@ export default function ActivityCardV2({ activity, onAccept, onSkip, index }: Pr
     <div style={{ position: 'relative' }}>
       <div
         className="card animate-fade-in"
-        style={{ animationDelay: `${index * 80}ms`, overflow: 'hidden', transformOrigin: 'center center', ...animStyle }}
+        style={{ animationDelay: `${index * 80}ms`, overflow: 'hidden', transformOrigin: 'center center', padding: 0, ...animStyle }}
       >
-        {/* Tappable header — image + title + quick pass */}
-        <button
-          onClick={() => setExpanded(v => !v)}
-          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, display: 'block' }}
-        >
-          {/* Photo / gradient hero */}
+        {/* ── Hero image / gradient ── */}
+        <div style={{
+          position: 'relative',
+          height: hasImage ? 220 : 140,
+          overflow: 'hidden',
+          background: hasImage ? '#111' : (CATEGORY_GRADIENT[activity.category] ?? CATEGORY_GRADIENT.nature_walk),
+        }}>
+          {hasImage && imageUrl && (
+            <img
+              src={imageUrl}
+              alt={activity.title}
+              onError={() => setPhotoError(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          )}
+          {!hasImage && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 72, opacity: 0.15 }}>{activity.emoji}</span>
+            </div>
+          )}
+          {/* Gradient overlay */}
           <div style={{
-            position: 'relative',
-            height: 200,
-            overflow: 'hidden',
-            borderRadius: '6px 6px 0 0',
-            background: hasImage ? '#111' : (CATEGORY_GRADIENT[activity.category] ?? CATEGORY_GRADIENT.nature_walk),
-          }}>
-            {hasImage && imageUrl && (
-              <img
-                src={imageUrl}
-                alt={activity.title}
-                onError={() => setPhotoError(true)}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            )}
-            {!hasImage && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', userSelect: 'none', pointerEvents: 'none' }}>
-                <span style={{ fontSize: 90, opacity: 0.13 }}>{activity.emoji}</span>
-              </div>
-            )}
-            {/* Gradient overlay with title + pass button */}
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.78) 100%)',
-              display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-              padding: '14px 14px 16px',
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.82) 100%)',
+          }} />
+          {/* Pass button — top right */}
+          <button
+            onClick={handleSkip}
+            style={{
+              position: 'absolute', top: 10, right: 10,
+              background: 'rgba(0,0,0,0.45)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 4, padding: '5px 11px',
+              color: 'rgba(255,255,255,0.88)',
+              fontSize: '0.68rem', fontFamily: 'var(--font-display)',
+              fontWeight: 700, cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}
+          >
+            Pass
+          </button>
+          {/* Title + meta overlaid on image */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '14px 14px 12px' }}>
+            <h3 style={{
+              fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800,
+              margin: '0 0 6px', color: '#fff', lineHeight: 1.2,
+              textShadow: '0 1px 6px rgba(0,0,0,0.5)',
             }}>
-              <h3 style={{
-                fontFamily: 'var(--font-display)', fontSize: '1.08rem', fontWeight: 800,
-                margin: 0, color: '#fff', lineHeight: 1.25,
-                textShadow: '0 1px 4px rgba(0,0,0,0.45)', flex: 1, paddingRight: 10,
-              }}>
-                {activity.title}
-                {activity.venue && (
-                  <span style={{ fontWeight: 600, opacity: 0.8 }}> · {activity.venue.name}</span>
-                )}
-              </h3>
-              {/* Always-visible pass button — one tap to dismiss without expanding */}
-              <button
-                onClick={handleSkip}
-                style={{
-                  background: 'rgba(0,0,0,0.4)',
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  borderRadius: 4,
-                  padding: '5px 11px',
-                  color: 'rgba(255,255,255,0.9)',
-                  fontSize: '0.7rem',
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  backdropFilter: 'blur(6px)',
-                  WebkitBackdropFilter: 'blur(6px)',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Pass
-              </button>
+              {activity.emoji} {activity.title}
+            </h3>
+            {/* Quick meta pills */}
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Pill variant="cost">{costLabel}</Pill>
+              <Pill variant="meta">{activity.duration}</Pill>
+              {activity.venue && <Pill variant="meta">📍 {activity.venue.name}</Pill>}
+              {activity.venue?.rating && <Pill variant="rating">⭐ {activity.venue.rating.toFixed(1)}</Pill>}
+              {activity.venue?.openNow === false && <Pill variant="warning">May be closed</Pill>}
+              {activity.sourceUrl && <Pill variant="event">🎟 Event</Pill>}
             </div>
           </div>
+        </div>
 
-          {/* Key facts */}
-          <div style={{ padding: '9px 14px 11px', display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Pill variant="brand">{costLabel}</Pill>
-            <Pill>{activity.duration}</Pill>
-            <Pill>{activity.energyLevel === 'low' ? 'Relaxed' : activity.energyLevel === 'medium' ? 'Active' : 'High energy'}</Pill>
-            {activity.venue?.rating && <Pill variant="amber">⭐ {activity.venue.rating.toFixed(1)}</Pill>}
-            {activity.venue?.openNow === false && <Pill variant="rose">May be closed</Pill>}
-            {activity.sourceUrl && <Pill variant="event">🎟 Event</Pill>}
-            <span style={{
-              marginLeft: 'auto', fontSize: 13,
-              color: 'var(--color-text-faint)',
-              transform: expanded ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s',
-              flexShrink: 0,
-            }}>↓</span>
+        {/* ── Why it works — visible without expanding ── */}
+        {activity.whyItWorks && activity.whyItWorks.length > 0 && (
+          <div style={{
+            padding: '12px 14px 10px',
+            borderBottom: '1px solid var(--color-border)',
+          }}>
+            <p style={{
+              fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
+              color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.1em',
+              margin: '0 0 7px',
+            }}>
+              Why it works for your kids
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {activity.whyItWorks.map((w, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <span style={{
+                    fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.72rem',
+                    color: 'var(--color-brand)', whiteSpace: 'nowrap', marginTop: 1, flexShrink: 0,
+                  }}>
+                    {w.name}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+                    {w.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* ── Expand toggle ── */}
+        <button
+          onClick={() => setExpanded(v => !v)}
+          style={{
+            width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+            padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            borderBottom: expanded ? '1px solid var(--color-border)' : 'none',
+          }}
+        >
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+            {expanded ? 'Hide the plan' : 'See the plan & venue details'}
+          </span>
+          <span style={{
+            fontSize: 13, color: 'var(--color-text-faint)',
+            transform: expanded ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.2s',
+          }}>↓</span>
         </button>
 
-        {/* Expanded content */}
+        {/* ── Expanded content ── */}
         {expanded && (
-          <div className="animate-fade-in" style={{ borderTop: '1px solid var(--color-border)', padding: '16px 16px 18px' }}>
+          <div className="animate-fade-in" style={{ padding: '16px 16px 18px' }}>
 
             {/* Plan */}
-            <SectionHeading>The plan</SectionHeading>
+            <Label>The plan</Label>
             <ol style={{ margin: '0 0 20px', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
               {activity.plan.map((step, i) => (
                 <li key={i} style={{ fontSize: '0.875rem', lineHeight: 1.5, color: 'var(--color-text)' }}>{step}</li>
               ))}
             </ol>
-
-            {/* Why it works — the product's differentiator, given visual prominence */}
-            <div style={{
-              background: 'var(--color-brand-light)',
-              border: '1px solid var(--color-brand-mid)',
-              borderRadius: 8,
-              padding: '14px 14px 12px',
-              marginBottom: 18,
-            }}>
-              <SectionHeading style={{ color: 'var(--color-brand)' }}>Why it works for your kids</SectionHeading>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {activity.whyItWorks.map((w, i) => (
-                  <div key={i}>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--color-brand)' }}>
-                      {w.name}, age {w.age}
-                    </div>
-                    <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.45 }}>
-                      {w.reason}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* Venue */}
             {activity.venue && (
@@ -304,6 +309,19 @@ export default function ActivityCardV2({ activity, onAccept, onSkip, index }: Pr
             </div>
           </div>
         )}
+
+        {/* Let's go CTA — always visible when not expanded */}
+        {!expanded && (
+          <div style={{ padding: '0 14px 14px', display: 'flex', gap: 8 }}>
+            <button
+              className="btn-primary"
+              style={{ flex: 1 }}
+              onClick={e => { e.stopPropagation(); onAccept(activity); }}
+            >
+              Let&apos;s do this! 🎉
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Block-place undo snackbar */}
@@ -333,23 +351,36 @@ export default function ActivityCardV2({ activity, onAccept, onSkip, index }: Pr
 
 // ── Internal helper components ────────────────────────────────────────────────
 
-function Pill({ children, variant }: { children: React.ReactNode; variant?: 'brand' | 'amber' | 'rose' | 'event' }) {
+function Pill({ children, variant }: {
+  children: React.ReactNode;
+  variant: 'cost' | 'meta' | 'rating' | 'warning' | 'event';
+}) {
   const s: React.CSSProperties =
-    variant === 'brand' ? { background: 'var(--color-brand-light)', color: 'var(--color-brand)' }
-    : variant === 'amber' ? { background: 'var(--color-amber-light)', color: 'var(--color-amber)' }
-    : variant === 'rose' ? { background: 'var(--color-rose-light)', color: 'var(--color-rose)' }
-    : variant === 'event' ? { background: '#FFF3E0', color: '#E65100' }
-    : { background: 'var(--color-bg)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border-subtle)' };
+    variant === 'cost'    ? { background: 'rgba(255,255,255,0.2)', color: '#fff', backdropFilter: 'blur(4px)' }
+    : variant === 'rating'  ? { background: 'rgba(255,200,50,0.25)', color: '#FFD700' }
+    : variant === 'warning' ? { background: 'rgba(220,60,60,0.3)', color: '#ff9999' }
+    : variant === 'event'   ? { background: 'rgba(255,107,53,0.3)', color: '#FFB899' }
+    : { background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' };
   return (
-    <span style={{ ...s, fontSize: '0.68rem', fontWeight: 700, padding: '3px 8px', borderRadius: 3, fontFamily: 'var(--font-display)', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
+    <span style={{
+      ...s,
+      fontSize: '0.65rem', fontWeight: 700, padding: '3px 7px',
+      borderRadius: 3, fontFamily: 'var(--font-display)',
+      letterSpacing: '0.02em', whiteSpace: 'nowrap',
+      maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block',
+    }}>
       {children}
     </span>
   );
 }
 
-function SectionHeading({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function Label({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontFamily: 'var(--font-display)', fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.09em', margin: '0 0 8px', ...style }}>
+    <p style={{
+      fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 700,
+      color: 'var(--color-text-faint)', textTransform: 'uppercase',
+      letterSpacing: '0.09em', margin: '0 0 8px',
+    }}>
       {children}
     </p>
   );

@@ -176,12 +176,14 @@ export default function DiscoverV2({ onSwitchVersion }: Props) {
   // ── Init on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
-      autoFetchedRef.current = true;
       requestLocationRef.current().catch(() => {}); // warm up GPS
-      const gotQueue = await popFromQueue();
-      if (!gotQueue && hasChildrenRef.current && prefsRef.current) {
-        fetchFresh(filters);
+      // If prefs are already loaded (returning user), fetch immediately
+      if (hasChildrenRef.current && prefsRef.current) {
+        autoFetchedRef.current = true;
+        const gotQueue = await popFromQueue();
+        if (!gotQueue) fetchFresh(filters);
       }
+      // Otherwise the fallback effect below will fire when prefs arrive
     }
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,9 +230,11 @@ export default function DiscoverV2({ onSwitchVersion }: Props) {
   }
 
   function handleFiltersApply(newFilters: ActivityFilters) {
+    const changed = JSON.stringify(newFilters) !== JSON.stringify(filters);
     setFilters(newFilters);
     saveFilters(newFilters);
     setShowFilters(false);
+    if (!changed) return; // user hit "Done" without changing anything — no reload
     setShowAll(false);
     setAllActivities([]);
     setActivities([]);

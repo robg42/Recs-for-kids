@@ -12,6 +12,11 @@ interface User {
   isAdmin: boolean;
 }
 
+interface HealthData {
+  keys: Record<string, boolean>;
+  dbOk: boolean;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
@@ -23,6 +28,7 @@ export default function AdminPage() {
   const [addSuccess, setAddSuccess] = useState('');
   const [inviteLink, setInviteLink] = useState('');
   const [usersLoading, setUsersLoading] = useState(false);
+  const [health, setHealth] = useState<HealthData | null>(null);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -41,7 +47,10 @@ export default function AdminPage() {
     }
   }, [router]);
 
-  useEffect(() => { loadUsers(); }, [loadUsers]);
+  useEffect(() => {
+    loadUsers();
+    fetch('/api/admin/health').then(r => r.ok ? r.json() : null).then(d => { if (d) setHealth(d); }).catch(() => {});
+  }, [loadUsers]);
 
   async function handleAddUser(e: React.FormEvent) {
     e.preventDefault();
@@ -146,6 +155,36 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+
+        {/* API health */}
+        {health && (
+          <section style={{ marginBottom: 32 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 800, marginBottom: 12 }}>
+              System health
+            </h2>
+            <div className="card" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { key: 'DB connection', ok: health.dbOk },
+                { key: 'Anthropic (AI)', ok: health.keys.ANTHROPIC_API_KEY },
+                { key: 'Google Places (venues + photos)', ok: health.keys.GOOGLE_PLACES_API_KEY },
+                { key: 'OpenWeather', ok: health.keys.OPENWEATHER_API_KEY },
+                { key: 'Gmail email', ok: health.keys.GMAIL_USER && health.keys.GMAIL_APP_PASSWORD },
+              ].map(({ key, ok }) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>{key}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.72rem',
+                    padding: '2px 9px', borderRadius: 999,
+                    background: ok ? 'var(--color-green-light)' : 'var(--color-rose-light)',
+                    color: ok ? 'var(--color-green)' : 'var(--color-rose)',
+                  }}>
+                    {ok ? '✓ OK' : '✗ NOT SET'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Add user */}
         <section style={{ marginBottom: 32 }}>
