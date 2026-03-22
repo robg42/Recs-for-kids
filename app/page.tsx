@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import DiscoverV2 from '@/components/DiscoverV2';
+import DiscoverV3 from '@/components/DiscoverV3';
 import Navigation from '@/components/Navigation';
 import ActivityCard from '@/components/ActivityCard';
 import WeatherBadge from '@/components/WeatherBadge';
@@ -56,28 +56,27 @@ function minutesAgo(ms: number) {
 export default function DiscoverPage() {
   // ── Version switcher ─────────────────────────────────────────────────────
   // null = not yet read (server + first paint); avoids hydration mismatch.
-  const [uiVersion, setUiVersion] = useState<'v1' | 'v2' | null>(null);
+  const [uiVersion, setUiVersion] = useState<'v1' | 'v3' | null>(null);
   useEffect(() => {
-    const stored = localStorage.getItem('rfk-ui-version') as 'v1' | 'v2' | null;
-    setUiVersion(stored ?? 'v2');
+    const stored = localStorage.getItem('rfk-ui-version');
+    // Default to v3. Treat any non-'v1' value (including old 'v2') as v3.
+    setUiVersion(stored === 'v1' ? 'v1' : 'v3');
   }, []);
+
+  function switchTo(v: 'v1' | 'v3') {
+    localStorage.setItem('rfk-ui-version', v);
+    setUiVersion(v);
+  }
 
   // Render nothing until localStorage has been read — prevents hydration mismatch
   if (uiVersion === null) return null;
 
-  if (uiVersion === 'v2') {
-    return (
-      <DiscoverV2
-        onSwitchVersion={() => {
-          localStorage.setItem('rfk-ui-version', 'v1');
-          setUiVersion('v1');
-        }}
-      />
-    );
+  if (uiVersion === 'v3') {
+    return <DiscoverV3 onSwitchVersion={() => switchTo('v1')} />;
   }
 
   // ── Classic (V1) ─────────────────────────────────────────────────────────
-  return <DiscoverV1 onSwitchToNew={() => { localStorage.setItem('rfk-ui-version', 'v2'); setUiVersion('v2'); }} />;
+  return <DiscoverV1 onSwitchToNew={() => switchTo('v3')} />;
 }
 
 function DiscoverV1({ onSwitchToNew }: { onSwitchToNew: () => void }) {
