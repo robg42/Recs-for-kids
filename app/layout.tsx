@@ -15,13 +15,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Family Adventures',
+  title: 'Adventure Time!',
   description: 'Fun, budget-friendly activity ideas for parents and kids',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Family Adventures',
+    title: 'Adventure Time!',
   },
 };
 

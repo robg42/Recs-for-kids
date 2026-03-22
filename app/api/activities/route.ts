@@ -8,6 +8,7 @@ import { getClientIp } from '@/lib/ip';
 import { saveServerCache } from '@/lib/activity-cache';
 import { buildPoolKey, getFromPool, saveToPool } from '@/lib/suggestion-pool';
 import { initSchema } from '@/lib/schema';
+import { fetchLocalEvents } from '@/lib/events';
 import type { GenerateActivitiesRequest, GenerateActivitiesResponse } from '@/types';
 
 export const runtime = 'nodejs';
@@ -106,10 +107,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[api/activities] user=${session.email} coords=${coords.lat},${coords.lon} transport=${filters.transport} indoor=${filters.indoorOutdoor} energy=${filters.energyLevel}`);
 
-    // Get weather first so we can check the shared pool (weather affects key)
-    const [weather, venues] = await Promise.all([
+    // Fetch weather, venues, and local events in one parallel round-trip
+    const [weather, venues, events] = await Promise.all([
       getWeather(coords.lat, coords.lon),
       getNearbyVenues(coords.lat, coords.lon, radius, filters.indoorOutdoor, filters.energyLevel),
+      fetchLocalEvents(coords.lat, coords.lon).catch(() => []),
     ]);
 
     // Check shared suggestion pool — skip expensive Anthropic call if hit
@@ -133,7 +135,9 @@ export async function POST(req: NextRequest) {
       venues,
       weather,
       recentActivityIds ?? [],
-      categoryWeights
+      categoryWeights,
+      3,
+      events
     );
 
     console.log(`[api/activities] Generated ${activities.length} activities for ${session.email}`);

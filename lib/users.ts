@@ -84,3 +84,32 @@ export async function setUserChildren(email: string, children: ChildProfile[]): 
     args: [JSON.stringify(children), email.trim()],
   });
 }
+
+const MIN_SESSION_DAYS = 1;
+const MAX_SESSION_DAYS = 365;
+
+/** Returns the user's preferred session duration in days (default 30). */
+export async function getSessionDurationDays(email: string): Promise<number> {
+  try {
+    const db = getDb();
+    const result = await db.execute({
+      sql: 'SELECT session_duration_days FROM users WHERE email = ? COLLATE NOCASE LIMIT 1',
+      args: [email.trim()],
+    });
+    const val = result.rows[0]?.session_duration_days;
+    if (typeof val !== 'number') return 30;
+    return Math.max(MIN_SESSION_DAYS, Math.min(MAX_SESSION_DAYS, val));
+  } catch {
+    return 30;
+  }
+}
+
+/** Updates the user's preferred session duration (clamped to 1–365 days). */
+export async function setSessionDurationDays(email: string, days: number): Promise<void> {
+  const clamped = Math.max(MIN_SESSION_DAYS, Math.min(MAX_SESSION_DAYS, Math.floor(days)));
+  const db = getDb();
+  await db.execute({
+    sql: 'UPDATE users SET session_duration_days = ? WHERE email = ? COLLATE NOCASE',
+    args: [clamped, email.trim()],
+  });
+}

@@ -1,57 +1,122 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Proxy Google Places photos server-side so the API key never leaves the server.
-// Auth is enforced upstream by proxy.ts (rfk-session cookie required).
+// Proxy server: handles two modes
+//   ?name=places/.../photos/...   → Google Places photo (API key auth)
+//   ?url=https://...              → External image (Eventbrite, Serper thumbnails)
+//
+// Both modes keep the img-src 'self' CSP rule clean — all image traffic
+// flows through this origin.  Auth is enforced upstream (rfk-session cookie).
 
 const VALID_PHOTO_NAME = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/;
 
+// RFC 1918 + loopback + link-local — block to prevent SSRF
+const PRIVATE_IP_RE =
+  /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|::1|fc00:|fd|fe80:)/i;
+
+const ALLOWED_IMAGE_CONTENT_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml',
+]);
+
+// ─── Google Places photo ──────────────────────────────────────────────────────
+
+async function handlePlacesPhoto(name: string): Promise<NextResponse> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) return new NextResponse('Not configured', { status: 503 });
+
+  const metaUrl = `https://places.googleapis.com/v1/${name}/media?key=${apiKey}&maxWidthPx=800&skipHttpRedirect=true`;
+  const metaRes = await fetch(metaUrl, { next: { revalidate: 86400 } });
+
+  if (!metaRes.ok) {
+    console.error(`[photo] Places API ${metaRes.status} for ${name}`);
+    return new NextResponse('Photo not found', { status: 404 });
+  }
+
+  const meta = (await metaRes.json()) as { photoUri?: string };
+  if (!meta.photoUri) return new NextResponse('No photo URI', { status: 404 });
+
+  const imgRes = await fetch(meta.photoUri);
+  if (!imgRes.ok) return new NextResponse('Image fetch failed', { status: 502 });
+
+  const buffer = await imgRes.arrayBuffer();
+  const contentType = imgRes.headers.get('content-type') ?? 'image/jpeg';
+  return new NextResponse(buffer, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400, immutable',
+    },
+  });
+}
+
+// ─── External image proxy ─────────────────────────────────────────────────────
+
+async function handleExternalImage(rawUrl: string): Promise<NextResponse> {
+  // 1. Must be https
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return new NextResponse('Bad URL', { status: 400 }); }
+
+  if (parsed.protocol !== 'https:') return new NextResponse('HTTPS only', { status: 400 });
+
+  // 2. Block private IPs (SSRF guard) — check the hostname
+  const host = parsed.hostname;
+  if (PRIVATE_IP_RE.test(host) || host === 'localhost') {
+    return new NextResponse('Forbidden', { status: 403 });
+  }
+
+  // 3. Fetch with a tight timeout — this is a fire-and-forget background enrichment
+  //    so slow external hosts should not block the response.
+  let imgRes: Response;
+  try {
+    imgRes = await fetch(rawUrl, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'RecsForKids/1.0 (image proxy)' },
+    });
+  } catch {
+    return new NextResponse('Image fetch failed', { status: 502 });
+  }
+
+  if (!imgRes.ok) return new NextResponse('Image not found', { status: 404 });
+
+  // 4. Validate content-type
+  const ct = (imgRes.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  if (!ALLOWED_IMAGE_CONTENT_TYPES.has(ct)) {
+    return new NextResponse('Not an image', { status: 415 });
+  }
+
+  // 5. Cap size at 10 MB to avoid unbounded memory use
+  const MAX_BYTES = 10 * 1024 * 1024;
+  const buffer = await imgRes.arrayBuffer();
+  if (buffer.byteLength > MAX_BYTES) {
+    return new NextResponse('Image too large', { status: 413 });
+  }
+
+  return new NextResponse(buffer, {
+    headers: {
+      'Content-Type': ct || 'image/jpeg',
+      // Shorter TTL than Google Places — external URLs may rotate/expire
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    },
+  });
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
 export async function GET(req: NextRequest) {
   const name = req.nextUrl.searchParams.get('name');
-
-  if (!name || !VALID_PHOTO_NAME.test(name)) {
-    return new NextResponse('Bad request', { status: 400 });
-  }
-
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) {
-    return new NextResponse('Not configured', { status: 503 });
-  }
+  const externalUrl = req.nextUrl.searchParams.get('url');
 
   try {
-    // skipHttpRedirect=true returns JSON { photoUri } instead of a redirect
-    const metaUrl = `https://places.googleapis.com/v1/${name}/media?key=${apiKey}&maxWidthPx=800&skipHttpRedirect=true`;
-    const metaRes = await fetch(metaUrl, { next: { revalidate: 86400 } });
-
-    if (!metaRes.ok) {
-      const errBody = await metaRes.text();
-      console.error(`[photo] Places media API error ${metaRes.status} for ${name}: ${errBody}`);
-      return new NextResponse('Photo not found', { status: 404 });
+    if (name) {
+      if (!VALID_PHOTO_NAME.test(name)) return new NextResponse('Bad request', { status: 400 });
+      return await handlePlacesPhoto(name);
     }
 
-    const meta = (await metaRes.json()) as { photoUri?: string };
-    if (!meta.photoUri) {
-      console.warn(`[photo] No photoUri in response for ${name}`);
-      return new NextResponse('No photo URI', { status: 404 });
+    if (externalUrl) {
+      return await handleExternalImage(externalUrl);
     }
 
-    // Proxy the image bytes so img-src 'self' in CSP stays clean
-    const imgRes = await fetch(meta.photoUri);
-    if (!imgRes.ok) {
-      console.error(`[photo] CDN image fetch failed ${imgRes.status} for ${name}`);
-      return new NextResponse('Image fetch failed', { status: 502 });
-    }
-
-    const buffer = await imgRes.arrayBuffer();
-    const contentType = imgRes.headers.get('content-type') ?? 'image/jpeg';
-
-    return new NextResponse(buffer, {
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, immutable',
-      },
-    });
+    return new NextResponse('Missing name or url', { status: 400 });
   } catch (err) {
-    console.error(`[photo] Unexpected error for ${name}:`, err);
+    console.error('[photo] Unexpected error:', err);
     return new NextResponse('Server error', { status: 500 });
   }
 }

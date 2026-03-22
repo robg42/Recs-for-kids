@@ -4,11 +4,17 @@ import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { usePreferences } from '@/hooks/usePreferences';
 import { loadPreferences, savePreferences } from '@/lib/storage';
-import type { ChildProfile, ActivityFilters, TimeAvailable, Transport } from '@/types';
+import type { ChildProfile, ActivityFilters, TimeAvailable, Transport, Gender, BlockedPlace } from '@/types';
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+const GENDER_OPTIONS: { value: Gender; label: string; emoji: string }[] = [
+  { value: 'boy',   label: 'Boy',   emoji: '👦' },
+  { value: 'girl',  label: 'Girl',  emoji: '👧' },
+  { value: 'fluid', label: 'Fluid', emoji: '🧒' },
+];
 
 export default function SettingsPage() {
   const { prefs, updateChildren, wipeHistory } = usePreferences();
@@ -17,18 +23,27 @@ export default function SettingsPage() {
   const [children, setChildren] = useState<ChildProfile[]>([]);
   const [newName, setNewName] = useState('');
   const [newAge, setNewAge] = useState('');
-  const [editingInterestsId, setEditingInterestsId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Default filters
   const [defaultTransport, setDefaultTransport] = useState<Transport>('car');
   const [defaultBudget, setDefaultBudget] = useState(15);
   const [defaultTime, setDefaultTime] = useState<TimeAvailable>('half-day');
 
+  // Session duration
+  const [sessionDays, setSessionDays] = useState(30);
+
+  // Blocked places
+  const [blockedPlaces, setBlockedPlaces] = useState<BlockedPlace[]>([]);
+  const [loadingBlocked, setLoadingBlocked] = useState(true);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
+
   // UI state
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Sync from prefs on load
+  // Sync local prefs on load
   useEffect(() => {
     if (!prefs) return;
     setChildren(prefs.children ?? []);
@@ -42,6 +57,22 @@ export default function SettingsPage() {
     }
   }, [prefs]);
 
+  // Load server-side data: children (with gender), blocked places, session duration
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/profile').then((r) => r.json()).catch(() => null),
+      fetch('/api/settings').then((r) => r.json()).catch(() => null),
+      fetch('/api/blocked-places').then((r) => r.json()).catch(() => null),
+    ]).then(([profile, settings, blocked]) => {
+      if (profile && Array.isArray(profile.children)) setChildren(profile.children);
+      if (settings && typeof settings.sessionDays === 'number') setSessionDays(settings.sessionDays);
+      setBlockedPlaces(blocked?.places ?? []);
+      setLoadingBlocked(false);
+    });
+  }, []);
+
+  // ── Child helpers ──────────────────────────────────────────────────────────
+
   function addChild() {
     const age = parseInt(newAge, 10);
     if (!newName.trim() || isNaN(age) || age < 1 || age > 17) return;
@@ -53,30 +84,71 @@ export default function SettingsPage() {
 
   function removeChild(id: string) {
     setChildren((prev) => prev.filter((c) => c.id !== id));
+    if (editingId === id) setEditingId(null);
   }
 
-  function updateInterests(id: string, interests: string) {
-    setChildren((prev) => prev.map((c) => c.id === id ? { ...c, interests } : c));
+  function updateChildField<K extends keyof ChildProfile>(id: string, field: K, value: ChildProfile[K]) {
+    setChildren((prev) => prev.map((c) => c.id === id ? { ...c, [field]: value } : c));
   }
 
-  function saveAll() {
-    updateChildren(children);
-    // Save default filters alongside prefs
-    const stored = loadPreferences();
-    savePreferences({
-      ...stored,
-      children,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...(({ defaultFilters: { transport: defaultTransport, budgetPerChild: defaultBudget, timeAvailable: defaultTime } }) as any),
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  // ── Blocked places ─────────────────────────────────────────────────────────
+
+  async function unblockPlace(placeId: string) {
+    setUnblocking(placeId);
+    try {
+      await fetch('/api/blocked-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unblock', placeId }),
+      });
+      setBlockedPlaces((prev) => prev.filter((p) => p.placeId !== placeId));
+    } finally {
+      setUnblocking(null);
+    }
+  }
+
+  // ── Save all ───────────────────────────────────────────────────────────────
+
+  async function saveAll() {
+    setSaving(true);
+    try {
+      // Local prefs (category weights, history, etc.)
+      updateChildren(children);
+      const stored = loadPreferences();
+      savePreferences({
+        ...stored,
+        children,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...({ defaultFilters: { transport: defaultTransport, budgetPerChild: defaultBudget, timeAvailable: defaultTime } } as any),
+      });
+
+      // Persist children (with gender) and session duration to server in parallel
+      await Promise.all([
+        fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ children }),
+        }),
+        fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionDays }),
+        }),
+      ]);
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleClearHistory() {
     wipeHistory();
     setShowClearConfirm(false);
   }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -99,7 +171,7 @@ export default function SettingsPage() {
           ⚙️ Settings
         </h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: 32 }}>
-          Personalise your family adventures
+          Personalise your Adventure Time! experience
         </p>
 
         {/* ── Children ── */}
@@ -124,6 +196,7 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {children.map((c) => (
               <div key={c.id} className="card" style={{ padding: '14px 16px' }}>
+                {/* Header row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span
@@ -150,10 +223,10 @@ export default function SettingsPage() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       className="btn-ghost"
-                      onClick={() => setEditingInterestsId(editingInterestsId === c.id ? null : c.id)}
+                      onClick={() => setEditingId(editingId === c.id ? null : c.id)}
                       style={{ fontSize: '0.8rem', color: 'var(--color-orange)' }}
                     >
-                      {editingInterestsId === c.id ? 'Done' : '✏️ About them'}
+                      {editingId === c.id ? 'Done' : '✏️ Edit'}
                     </button>
                     <button
                       className="btn-ghost"
@@ -164,43 +237,87 @@ export default function SettingsPage() {
                     </button>
                   </div>
                 </div>
-                {/* Interests display / edit */}
-                {editingInterestsId === c.id ? (
-                  <div style={{ marginTop: 12 }}>
-                    <label className="field-label" htmlFor={`interests-${c.id}`}>
-                      What is {c.name} like?
-                    </label>
-                    <input
-                      id={`interests-${c.id}`}
-                      type="text"
-                      className="text-input"
-                      placeholder="e.g. loves dinosaurs, gets impatient in museums, obsessed with Lego"
-                      value={c.interests ?? ''}
-                      onChange={(e) => updateInterests(c.id, e.target.value)}
-                      maxLength={200}
-                    />
-                    <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
-                      Interests, quirks, what they love or hate — Claude will use this to tailor suggestions.
+
+                {/* Expanded edit panel */}
+                {editingId === c.id ? (
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Gender */}
+                    <div>
+                      <span className="field-label">Gender</span>
+                      <div className="toggle-group">
+                        {GENDER_OPTIONS.map((g) => (
+                          <button
+                            key={g.value}
+                            type="button"
+                            className={`toggle-btn ${c.gender === g.value ? 'active' : ''}`}
+                            onClick={() =>
+                              updateChildField(c.id, 'gender', c.gender === g.value ? undefined : g.value)
+                            }
+                          >
+                            {g.emoji} {g.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
+                        Used for developmental context only — we never stereotype.
+                      </p>
+                    </div>
+
+                    {/* Interests */}
+                    <div>
+                      <label className="field-label" htmlFor={`interests-${c.id}`}>
+                        What is {c.name} like?
+                      </label>
+                      <input
+                        id={`interests-${c.id}`}
+                        type="text"
+                        className="text-input"
+                        placeholder="e.g. loves dinosaurs, gets impatient in museums, obsessed with Lego"
+                        value={c.interests ?? ''}
+                        onChange={(e) => updateChildField(c.id, 'interests', e.target.value)}
+                        maxLength={200}
+                      />
+                      <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', marginTop: 4 }}>
+                        Interests, quirks, what they love or hate — used to tailor suggestions.
+                      </div>
                     </div>
                   </div>
-                ) : c.interests ? (
-                  <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--color-text-muted)', paddingLeft: 52 }}>
-                    🎯 {c.interests}
+                ) : (
+                  /* Summary badges */
+                  <div style={{ marginTop: 8, paddingLeft: 52, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {c.gender && (
+                      <span
+                        style={{
+                          background: 'var(--color-orange-light)',
+                          borderRadius: 999,
+                          padding: '2px 10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: 'var(--color-orange)',
+                        }}
+                      >
+                        {GENDER_OPTIONS.find((g) => g.value === c.gender)?.emoji}{' '}
+                        {GENDER_OPTIONS.find((g) => g.value === c.gender)?.label}
+                      </span>
+                    )}
+                    {c.interests && (
+                      <span
+                        style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}
+                      >
+                        🎯 {c.interests}
+                      </span>
+                    )}
                   </div>
-                ) : null}
+                )}
               </div>
             ))}
           </div>
 
           {/* Add child form */}
           <div className="card" style={{ padding: '16px' }}>
-            <div
-              style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-end' }}
-            >
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: 2 }}>
-                <label className="field-label" htmlFor="child-name">
-                  Name
-                </label>
+                <label className="field-label" htmlFor="child-name">Name</label>
                 <input
                   id="child-name"
                   type="text"
@@ -213,9 +330,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label className="field-label" htmlFor="child-age">
-                  Age
-                </label>
+                <label className="field-label" htmlFor="child-age">Age</label>
                 <input
                   id="child-age"
                   type="number"
@@ -240,7 +355,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* ── Default filters ── */}
+        {/* ── Default preferences ── */}
         <section style={{ marginBottom: 32 }}>
           <h2
             style={{
@@ -323,6 +438,123 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* ── Session duration ── */}
+        <section style={{ marginBottom: 32 }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              marginBottom: 4,
+            }}
+          >
+            🔐 Stay signed in
+          </h2>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: 16 }}>
+            How long before you need to sign in again. Default is 30 days.
+          </p>
+
+          <div className="card" style={{ padding: '20px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.4rem', minWidth: 64 }}>
+                {sessionDays}d
+              </span>
+              <input
+                type="range"
+                min={7}
+                max={365}
+                step={1}
+                value={sessionDays}
+                onChange={(e) => setSessionDays(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--color-orange)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--color-text-faint)' }}>
+              <span>7 days</span>
+              <span>1 year</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 10 }}>
+              Takes effect on your <em>next</em> sign-in. You&apos;re currently signed in — no action needed.
+            </p>
+          </div>
+        </section>
+
+        {/* ── Blocked places ── */}
+        <section style={{ marginBottom: 32 }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              marginBottom: 4,
+            }}
+          >
+            🚫 Blocked places
+          </h2>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: 16 }}>
+            Places you&apos;ve hidden from recommendations. Unblock them here any time.
+          </p>
+
+          <div className="card" style={{ padding: '16px' }}>
+            {loadingBlocked ? (
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-faint)', textAlign: 'center', padding: '12px 0' }}>
+                Loading…
+              </p>
+            ) : blockedPlaces.length === 0 ? (
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', textAlign: 'center', padding: '8px 0' }}>
+                No blocked places yet. When you block a venue from a card, it appears here.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {blockedPlaces.map((p) => (
+                  <div
+                    key={p.placeId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '10px 12px',
+                      background: 'var(--color-bg-subtle, #F9F9F9)',
+                      borderRadius: 10,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        📍 {p.placeName}
+                      </div>
+                      {p.address && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.address}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => unblockPlace(p.placeId)}
+                      disabled={unblocking === p.placeId}
+                      style={{
+                        background: 'transparent',
+                        border: '1.5px solid var(--color-orange)',
+                        color: 'var(--color-orange)',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        fontSize: '0.8rem',
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 700,
+                        cursor: unblocking === p.placeId ? 'default' : 'pointer',
+                        opacity: unblocking === p.placeId ? 0.5 : 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {unblocking === p.placeId ? '…' : 'Unblock'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* ── Data & privacy ── */}
         <section style={{ marginBottom: 32 }}>
           <h2
@@ -337,8 +569,7 @@ export default function SettingsPage() {
           </h2>
           <div className="card" style={{ padding: '16px' }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: 16 }}>
-              All activity history and preferences are stored locally on this device. Nothing is
-              sent to our servers.
+              Your preferences and activity history are private to your account and stored securely.
             </p>
 
             {showClearConfirm ? (
@@ -409,14 +640,22 @@ export default function SettingsPage() {
           className="btn-primary"
           style={{ width: '100%' }}
           onClick={saveAll}
+          disabled={saving}
         >
-          {saved ? 'Saved' : 'Save settings'}
+          {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save settings'}
         </button>
 
         {/* Sign out */}
         <form action="/api/auth/logout" method="POST" style={{ marginTop: 12 }}>
           <button
             type="submit"
+            onClick={() => {
+              try {
+                ['recs-for-kids-prefs', 'recs-for-kids-filters', 'recs-for-kids-results-cache'].forEach(
+                  (k) => localStorage.removeItem(k)
+                );
+              } catch { /* localStorage unavailable */ }
+            }}
             style={{
               width: '100%',
               background: 'transparent',

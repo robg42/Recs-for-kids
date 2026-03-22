@@ -128,7 +128,7 @@ export default function AdminPage() {
               🔐 Admin
             </h1>
             <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: '4px 0 0' }}>
-              Family Adventures dashboard
+              Adventure Time! dashboard
             </p>
           </div>
         </div>

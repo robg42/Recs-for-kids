@@ -14,7 +14,14 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-XSS-Protection", value: "1; mode=block" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self), payment=()" },
+  // Isolates the browsing context from cross-origin windows opened by this page
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  // Tells browsers not to share this page's opener reference cross-origin
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  // HSTS: enforce HTTPS for 1 year, include subdomains
+  // (Vercel also adds this automatically; safe to declare explicitly)
+  ...(!isDev ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
   {
     key: "Content-Security-Policy",
     value: [

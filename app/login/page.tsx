@@ -139,7 +139,7 @@ export default function LoginPage() {
             letterSpacing: '-0.02em',
           }}
         >
-          Family Adventures
+          Adventure Time!
         </h1>
         <p style={{ color: 'rgba(245,240,232,0.55)', fontSize: '0.875rem', margin: 0, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           Invite only

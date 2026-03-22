@@ -53,11 +53,15 @@ export async function consumeMagicToken(token: string): Promise<boolean> {
 
 // ── User session (30 days) ───────────────────────────────────────────────────
 
-export async function setSessionCookie(email: string): Promise<void> {
+export async function setSessionCookie(email: string, durationDays = 30): Promise<void> {
+  // Cap server-side regardless of what's passed
+  const safeDays = Math.max(1, Math.min(365, Math.floor(durationDays)));
+  const maxAge = safeDays * 24 * 60 * 60;
+
   const token = await new SignJWT({ email, type: 'session' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('30d')
+    .setExpirationTime(`${safeDays}d`)
     .sign(getSecret());
 
   const cookieStore = await cookies();
@@ -65,9 +69,36 @@ export async function setSessionCookie(email: string): Promise<void> {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: SESSION_MAX_AGE,
+    maxAge,
     path: '/',
   });
+}
+
+// ── sessions_nbf in-process cache ────────────────────────────────────────────
+// Querying the DB on every request to check for a "kill all sessions" timestamp
+// adds one Turso round-trip per call.  Cache it in memory for 60 s instead.
+let _nbfCache: { value: number | null; fetchedAt: number } | null = null;
+const NBF_CACHE_TTL_MS = 60_000;
+
+async function getSessionsNbf(): Promise<number | null> {
+  if (_nbfCache && Date.now() - _nbfCache.fetchedAt < NBF_CACHE_TTL_MS) {
+    return _nbfCache.value;
+  }
+  try {
+    const db = getDb();
+    const row = await db.execute({
+      sql: "SELECT value FROM settings WHERE key = 'sessions_nbf' LIMIT 1",
+      args: [],
+    });
+    const value =
+      row.rows.length > 0
+        ? new Date(row.rows[0].value as string).getTime()
+        : null;
+    _nbfCache = { value, fetchedAt: Date.now() };
+    return value;
+  } catch {
+    return null; // Settings table not yet created — allow session
+  }
 }
 
 export async function getSession(): Promise<{ email: string } | null> {
@@ -78,28 +109,19 @@ export async function getSession(): Promise<{ email: string } | null> {
     const { payload } = await jwtVerify(token, getSecret());
     if (payload.type !== 'session' || typeof payload.email !== 'string') return null;
 
-    // Check if session was issued before the global invalidation timestamp.
-    // Wrapped in its own try-catch: if the settings table doesn't exist yet
-    // (before initSchema() has run), we allow the session rather than failing.
-    try {
-      const db = getDb();
-      const row = await db.execute({
-        sql: "SELECT value FROM settings WHERE key = 'sessions_nbf' LIMIT 1",
-        args: [],
-      });
-      if (row.rows.length > 0) {
-        const nbf = new Date(row.rows[0].value as string).getTime();
-        const iat = (payload.iat ?? 0) * 1000;
-        if (iat < nbf) return null; // Issued before kill-all — treat as expired
-      }
-    } catch {
-      // Settings table not yet created — allow session
-    }
+    // Check global invalidation timestamp (cached 60 s to avoid per-request DB hit)
+    const nbf = await getSessionsNbf();
+    if (nbf !== null && (payload.iat ?? 0) * 1000 < nbf) return null;
 
     return { email: payload.email };
   } catch {
     return null;
   }
+}
+
+/** Call after invalidateAllSessions() so the cache reflects the new timestamp immediately. */
+export function clearNbfCache(): void {
+  _nbfCache = null;
 }
 
 export async function invalidateAllSessions(): Promise<void> {
@@ -108,6 +130,7 @@ export async function invalidateAllSessions(): Promise<void> {
     sql: "INSERT OR REPLACE INTO settings (key, value) VALUES ('sessions_nbf', ?)",
     args: [new Date().toISOString()],
   });
+  clearNbfCache(); // ensure next getSession() picks up the new timestamp immediately
 }
 
 export async function clearSessionCookie(): Promise<void> {

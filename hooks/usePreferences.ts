@@ -17,6 +17,13 @@ import type {
 
 export function usePreferences() {
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+  /**
+   * `initialized` becomes true after the first localStorage read completes
+   * (synchronously inside the first useEffect).  Use this to gate any UI that
+   * depends on whether the user has children — without it, the first render
+   * always sees `hasChildren = false` and flashes the old setup form.
+   */
+  const [initialized, setInitialized] = useState(false);
 
   const refresh = useCallback(() => {
     setPrefs(loadPreferences());
@@ -26,6 +33,7 @@ export function usePreferences() {
     // Load local prefs immediately so the UI isn't blocked
     const local = loadPreferences();
     setPrefs(local);
+    setInitialized(true); // synchronous — happens before any await in this effect
 
     // Sync children from server — server is the source of truth across devices
     fetch('/api/profile')
@@ -92,6 +100,7 @@ export function usePreferences() {
 
   return {
     prefs,
+    initialized,
     updateChildren,
     accept,
     reject,

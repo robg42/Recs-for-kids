@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getUserChildren, setUserChildren } from '@/lib/users';
-import type { ChildProfile } from '@/types';
+import { initSchema } from '@/lib/schema';
+import type { ChildProfile, Gender } from '@/types';
+
+export const runtime = 'nodejs';
+
+const VALID_GENDERS: Gender[] = ['boy', 'girl', 'fluid'];
 
 export async function GET() {
   const session = await getSession();
@@ -9,6 +14,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  await initSchema();
   const children = await getUserChildren(session.email);
   return NextResponse.json({ children });
 }
@@ -43,14 +49,27 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json({ error: 'Invalid child entry' }, { status: 400 });
     }
-    const child = c as { id: string; name: string; age: number };
+    const child = c as Record<string, unknown>;
+    const genderRaw = child.gender;
+    const gender: Gender | undefined =
+      typeof genderRaw === 'string' && VALID_GENDERS.includes(genderRaw as Gender)
+        ? (genderRaw as Gender)
+        : undefined;
+
+    const interestsRaw = child.interests;
+    const interests: string | undefined =
+      typeof interestsRaw === 'string' ? interestsRaw.trim().slice(0, 200) : undefined;
+
     validated.push({
-      id: child.id.slice(0, 64),
-      name: child.name.slice(0, 50),
-      age: Math.max(0, Math.min(17, Math.floor(child.age))),
+      id: (child.id as string).slice(0, 64),
+      name: (child.name as string).slice(0, 50),
+      age: Math.max(0, Math.min(17, Math.floor(child.age as number))),
+      ...(gender !== undefined ? { gender } : {}),
+      ...(interests ? { interests } : {}),
     });
   }
 
+  await initSchema();
   await setUserChildren(session.email, validated);
   return NextResponse.json({ ok: true });
 }
