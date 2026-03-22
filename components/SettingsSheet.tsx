@@ -84,13 +84,14 @@ export default function SettingsSheet({
             marginBottom: 24,
           }}>
             <h2 style={{
-              margin: 0, fontFamily: 'var(--font-display)',
-              fontSize: '1.15rem', fontWeight: 800, color: '#1a1a1a',
+              margin: 0, fontFamily: 'var(--font-space), var(--font-display)',
+              fontSize: '1.15rem', fontWeight: 700, color: '#1a1a1a',
+              letterSpacing: '-0.02em',
             }}>
               Settings
             </h2>
             <button onClick={onClose} style={{
-              background: '#f5f5f5', border: 'none', borderRadius: 10,
+              background: '#f5f5f5', border: 'none',
               width: 34, height: 34, display: 'flex', alignItems: 'center',
               justifyContent: 'center', fontSize: '1.1rem', color: '#999', cursor: 'pointer',
             }}>
@@ -135,6 +136,7 @@ export default function SettingsSheet({
               <div style={{
                 display: 'flex', justifyContent: 'space-between',
                 fontSize: '0.7rem', color: '#ccc', marginTop: 2,
+                fontFamily: 'var(--font-dm), var(--font-body)',
               }}>
                 <span>Free</span><span>£30</span>
               </div>
@@ -146,22 +148,23 @@ export default function SettingsSheet({
               {isManual ? (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 12px', background: '#f0fdf4', borderRadius: 10,
+                  padding: '8px 12px', background: '#f0fdf4',
                   marginBottom: 10,
                 }}>
-                  <span style={{ flex: 1, fontSize: '0.86rem', fontWeight: 600, color: '#16a34a' }}>
+                  <span style={{ flex: 1, fontSize: '0.86rem', fontWeight: 600, color: '#16a34a', fontFamily: 'var(--font-dm), var(--font-body)' }}>
                     📍 {locationLabel}
                   </span>
                   <button onClick={onClearLocation} style={{
-                    background: 'transparent', border: '1px solid #86efac', borderRadius: 8,
+                    background: 'transparent', border: '1px solid #86efac',
                     padding: '5px 12px', fontSize: '0.74rem', fontWeight: 700,
+                    fontFamily: 'var(--font-dm), var(--font-body)',
                     color: '#16a34a', cursor: 'pointer',
                   }}>
                     Use GPS
                   </button>
                 </div>
               ) : (
-                <div style={{ fontSize: '0.86rem', color: '#999', marginBottom: 10 }}>
+                <div style={{ fontSize: '0.86rem', color: '#999', marginBottom: 10, fontFamily: 'var(--font-dm), var(--font-body)' }}>
                   📍 Using GPS location
                 </div>
               )}
@@ -173,8 +176,8 @@ export default function SettingsSheet({
                   placeholder="Enter UK postcode"
                   style={{
                     flex: 1, padding: '10px 14px', border: '1.5px solid #e5e5e5',
-                    borderRadius: 10, fontSize: '0.9rem', outline: 'none',
-                    fontFamily: 'var(--font-body)', letterSpacing: '0.04em',
+                    fontSize: '0.9rem', outline: 'none',
+                    fontFamily: 'var(--font-dm), var(--font-body)', letterSpacing: '0.04em',
                     background: '#fff', color: '#1a1a1a',
                   }}
                 />
@@ -183,8 +186,8 @@ export default function SettingsSheet({
                   disabled={pcLoading || !postcode.trim()}
                   style={{
                     padding: '10px 18px', background: '#1a1a1a', color: '#fff',
-                    border: 'none', borderRadius: 10,
-                    fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.84rem',
+                    border: 'none',
+                    fontFamily: 'var(--font-space), var(--font-display)', fontWeight: 700, fontSize: '0.84rem',
                     cursor: pcLoading || !postcode.trim() ? 'default' : 'pointer',
                     opacity: pcLoading || !postcode.trim() ? 0.3 : 1,
                   }}
@@ -206,8 +209,7 @@ export default function SettingsSheet({
             style={{
               marginTop: 24, width: '100%', padding: '13px 0',
               background: 'transparent', border: '1.5px solid #e5e5e5',
-              borderRadius: 12,
-              fontFamily: 'var(--font-display)', fontWeight: 700,
+              fontFamily: 'var(--font-space), var(--font-display)', fontWeight: 700,
               fontSize: '0.86rem', color: '#666', cursor: 'pointer',
             }}
           >
@@ -219,8 +221,8 @@ export default function SettingsSheet({
             onClick={() => onApply(f)}
             style={{
               marginTop: 12, width: '100%', padding: '16px 0',
-              background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 14,
-              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.94rem',
+              background: '#1a1a1a', color: '#fff', border: 'none',
+              fontFamily: 'var(--font-space), var(--font-display)', fontWeight: 700, fontSize: '0.94rem',
               cursor: 'pointer',
               boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
             }}
@@ -238,8 +240,8 @@ export default function SettingsSheet({
 function Label({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.7rem',
-      color: '#bbb', textTransform: 'uppercase', letterSpacing: '0.08em',
+      fontFamily: 'var(--font-space), var(--font-display)', fontWeight: 700, fontSize: '0.7rem',
+      color: '#bbb', textTransform: 'uppercase', letterSpacing: '0.1em',
       marginBottom: 10,
     }}>
       {children}
@@ -272,10 +274,9 @@ function Segmented<T extends string>({
               style={{
                 flex: 1, padding: '11px 6px', minHeight: 44,
                 border: active ? '2px solid #1a1a1a' : '1.5px solid #eee',
-                borderRadius: 12,
                 background: active ? '#1a1a1a' : '#fff',
                 color: active ? '#fff' : '#999',
-                fontFamily: 'var(--font-display)', fontWeight: 700,
+                fontFamily: 'var(--font-space), var(--font-display)', fontWeight: 700,
                 fontSize: '0.8rem',
                 cursor: 'pointer', transition: 'all 0.12s', textAlign: 'center',
               }}

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Nunito, Inter } from 'next/font/google';
+import { Nunito, Inter, Space_Grotesk, DM_Sans } from 'next/font/google';
 import './globals.css';
 
 const nunito = Nunito({
@@ -11,6 +11,18 @@ const nunito = Nunito({
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space',
+  display: 'swap',
+});
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm',
   display: 'swap',
 });
 
@@ -34,7 +46,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${nunito.variable} ${inter.variable}`}>
+    <html lang="en" className={`${nunito.variable} ${inter.variable} ${spaceGrotesk.variable} ${dmSans.variable}`}>
       <body>{children}</body>
     </html>
   );
